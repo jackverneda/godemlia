@@ -1,0 +1,20 @@
+kademlia/
+│── cmd/                # Example CLI tool to test the library
+│   ├── main.go
+│── internal/           # Internal implementation details
+│   ├── routing/        # Routing table & k-buckets
+│   │   ├── routing_table.go
+│   │   ├── kbucket.go
+│   ├── network/        # gRPC server & client communication
+│   │   ├── grpc_server.go
+│   │   ├── grpc_client.go
+│   ├── storage/        # Data storage for the DHT
+│   │   ├── store.go
+│── proto/              # gRPC protocol definitions
+│   ├── kademlia.proto
+│── pkg/                # Public API for external use
+│   ├── kademlia.go     # High-level Kademlia API
+│── go.mod              # Go module definition
+│── README.md           # Documentation
+│── tests/              # Integration & unit tests
+│   ├── kademlia_test.go

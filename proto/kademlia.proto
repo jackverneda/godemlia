@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+option go_package = "github.com/jackverneda/godemlia/pb";
+
+package godemlia;
+
+message Response {
+    bool Success = 1;
+}
+
+message Node {
+    bytes ID   = 1;
+    string IP  = 2;
+    int32 Port = 3;
+}
+
+message Data {
+    int64 Init   = 1;
+    int64 End    = 2;
+    bytes Buffer = 3;
+}
+
+message StoreData{
+    Node Sender = 1;
+    bytes Key   = 2;
+    Data Value  = 3;
+}
+
+message Target {
+    bytes ID    = 1;
+    int64 Init  = 2;
+    int64 End   = 3;
+    Node Sender = 4;
+}
+
+message KBucket {
+    repeated Node Bucket = 1;
+}
+
+message FindValueResponse {
+    optional KBucket KNeartestBuckets = 1;
+    optional Data Value = 2;
+}
+
+service FullNode {
+    rpc Ping(Node)          returns (Node) {}
+    rpc Store(stream StoreData)  returns (Response) {}
+    rpc FindNode(Target)  returns (KBucket) {}
+    rpc FindValue(Target) returns (stream FindValueResponse) {}
+}
