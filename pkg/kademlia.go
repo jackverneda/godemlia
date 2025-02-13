@@ -2,13 +2,13 @@ package godemlia
 
 import "strings"
 
-type Node struct {
+type NodeInfo struct {
 	ID   []byte `json:"id,omitempty"`
 	IP   string `json:"ip,omitempty"`
 	Port int    `json:"port,omitempty"`
 }
 
-func (b *Node) Equal(other Node) bool {
+func (b *NodeInfo) Equal(other NodeInfo) bool {
 	return strings.EqualFold(b.IP, other.IP) &&
 		b.Port == other.Port
 }

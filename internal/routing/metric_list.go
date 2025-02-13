@@ -11,13 +11,13 @@ import (
 // comparator. These nodes are sorted by xor distance
 type ShortList struct {
 	// Nodes are a list of nodes to be compared
-	Nodes *[]godemlia.Node
+	Nodes *[]godemlia.NodeInfo
 
 	// Comparator is the ID to compare to
 	Comparator []byte
 }
 
-func areNodesEqual(n1 *godemlia.Node, n2 *godemlia.Node, allowNilID bool) bool {
+func areNodesEqual(n1 *godemlia.NodeInfo, n2 *godemlia.NodeInfo, allowNilID bool) bool {
 	if n1 == nil || n2 == nil {
 		return false
 	}
@@ -38,7 +38,7 @@ func areNodesEqual(n1 *godemlia.Node, n2 *godemlia.Node, allowNilID bool) bool {
 	return true
 }
 
-func (n *ShortList) RemoveNode(node *godemlia.Node) {
+func (n *ShortList) RemoveNode(node *godemlia.NodeInfo) {
 	for i := 0; i < n.Len(); i++ {
 		if bytes.Equal((*n.Nodes)[i].ID, node.ID) {
 			*n.Nodes = append((*n.Nodes)[:i], (*n.Nodes)[i+1:]...)
@@ -47,7 +47,7 @@ func (n *ShortList) RemoveNode(node *godemlia.Node) {
 	}
 }
 
-func (n *ShortList) Append(nodes []*godemlia.Node) {
+func (n *ShortList) Append(nodes []*godemlia.NodeInfo) {
 	////fmt.Println(nodes)
 	for _, vv := range nodes {
 		exists := false

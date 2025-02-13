@@ -27,32 +27,32 @@ const (
 )
 
 type RoutingTable struct {
-	*godemlia.Node
+	*godemlia.NodeInfo
 	*sync.Mutex
-	KBuckets [B][]godemlia.Node
+	KBuckets [B][]godemlia.NodeInfo
 }
 
-func NewRoutingTable(b godemlia.Node) *RoutingTable {
+func NewRoutingTable(b godemlia.NodeInfo) *RoutingTable {
 	rt := &RoutingTable{}
 	rt.ID = b.ID
 	rt.IP = b.IP
 	rt.Port = b.Port
 	rt.Mutex = &sync.Mutex{}
-	rt.KBuckets = [B][]godemlia.Node{}
+	rt.KBuckets = [B][]godemlia.NodeInfo{}
 	return rt
 }
 
-func (rt *RoutingTable) isAlive(b godemlia.Node) bool {
+func (rt *RoutingTable) isAlive(b godemlia.NodeInfo) bool {
 	address := fmt.Sprintf("%s:%d", rt.IP, rt.Port)
 	conn, _ := grpc.Dial(address, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 
-	client := pb.NewFullNodeClient(conn)
+	client := pb.NewNodeClient(conn)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	pbNode, err := client.Ping(ctx,
-		&pb.Node{
+		&pb.NodeInfo{
 			ID:   rt.ID,
 			IP:   rt.IP,
 			Port: int32(rt.Port),
@@ -62,18 +62,18 @@ func (rt *RoutingTable) isAlive(b godemlia.Node) bool {
 		return false
 	}
 
-	if !rt.Equal(godemlia.Node{ID: pbNode.ID, IP: pbNode.IP, Port: int(pbNode.Port)}) {
+	if !rt.Equal(godemlia.NodeInfo{ID: pbNode.ID, IP: pbNode.IP, Port: int(pbNode.Port)}) {
 		return false
 	}
 
 	return true
 }
 
-func (rt *RoutingTable) AddNode(b godemlia.Node) error {
+func (rt *RoutingTable) AddNode(b godemlia.NodeInfo) error {
 	rt.Lock()
 	defer rt.Unlock()
 
-	if b.Equal(*rt.Node) {
+	if b.Equal(*rt.NodeInfo) {
 		return errors.New("ERR: Self adition into the Routing Table")
 	}
 
@@ -135,7 +135,7 @@ func hasBit(n byte, pos uint) bool {
 	return (val > 0)
 }
 
-func (rt *RoutingTable) GetClosestContacts(num int, target []byte, ignoredNodes []*godemlia.Node) *ShortList {
+func (rt *RoutingTable) GetClosestContacts(num int, target []byte, ignoredNodes []*godemlia.NodeInfo) *ShortList {
 	rt.Lock()
 	defer rt.Unlock()
 	// First we need to build the list of adjacent indices to our target
@@ -157,7 +157,7 @@ func (rt *RoutingTable) GetClosestContacts(num int, target []byte, ignoredNodes 
 		j++
 	}
 
-	sl := &ShortList{Nodes: &[]godemlia.Node{}, Comparator: rt.ID}
+	sl := &ShortList{Nodes: &[]godemlia.NodeInfo{}, Comparator: rt.ID}
 
 	leftToAdd := num
 
@@ -173,7 +173,7 @@ func (rt *RoutingTable) GetClosestContacts(num int, target []byte, ignoredNodes 
 				}
 			}
 			if !ignored {
-				sl.Append([]*godemlia.Node{&rt.KBuckets[index][i]})
+				sl.Append([]*godemlia.NodeInfo{&rt.KBuckets[index][i]})
 				leftToAdd--
 				if leftToAdd == 0 {
 					break
