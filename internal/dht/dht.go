@@ -3,9 +3,9 @@ package dht
 import (
 	"bytes"
 
+	"github.com/jackverneda/godemlia/internal/basic"
 	"github.com/jackverneda/godemlia/internal/routing"
 	"github.com/jackverneda/godemlia/internal/storage"
-	godemlia "github.com/jackverneda/godemlia/pkg"
 )
 
 type DHT struct {
@@ -27,21 +27,21 @@ func (fn *DHT) Store(key []byte, data *[]byte) error {
 	return nil
 }
 
-func (fn *DHT) FindValue(infoHash *[]byte, start int64, end int64) (value *[]byte, neighbors *[]godemlia.NodeInfo) {
+func (fn *DHT) FindValue(infoHash *[]byte, start int64, end int64) (value *[]byte, neighbors *[]basic.NodeInfo) {
 	value, err := fn.IPersistance.Read(*infoHash, start, end)
 	if err != nil {
 		////fmt.Println("Find Value error: ", err)
-		neighbors = fn.RoutingTable.GetClosestContacts(routing.ALPHA, *infoHash, []*godemlia.NodeInfo{fn.NodeInfo}).Nodes
+		neighbors = fn.RoutingTable.GetClosestContacts(routing.ALPHA, *infoHash, []*basic.NodeInfo{fn.NodeInfo}).Nodes
 		return nil, neighbors
 	}
 	return value, nil
 }
 
-func (fn *DHT) FindNode(target *[]byte) (kBucket *[]godemlia.NodeInfo) {
+func (fn *DHT) FindNode(target *[]byte) (kBucket *[]basic.NodeInfo) {
 	if bytes.Equal(fn.ID, *target) {
-		kBucket = &[]godemlia.NodeInfo{*fn.NodeInfo}
+		kBucket = &[]basic.NodeInfo{*fn.NodeInfo}
 	}
-	kBucket = fn.RoutingTable.GetClosestContacts(routing.ALPHA, *target, []*godemlia.NodeInfo{fn.NodeInfo}).Nodes
+	kBucket = fn.RoutingTable.GetClosestContacts(routing.ALPHA, *target, []*basic.NodeInfo{fn.NodeInfo}).Nodes
 
 	return kBucket
 }

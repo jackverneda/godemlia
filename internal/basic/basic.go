@@ -1,13 +1,24 @@
-package utils
+package basic
 
 import (
 	"crypto/sha1"
 	"math/big"
 	"strconv"
+	"strings"
 
 	"github.com/jackverneda/godemlia/pb"
-	godemlia "github.com/jackverneda/godemlia/pkg"
 )
+
+type NodeInfo struct {
+	ID   []byte `json:"id,omitempty"`
+	IP   string `json:"ip,omitempty"`
+	Port int    `json:"port,omitempty"`
+}
+
+func (b *NodeInfo) Equal(other NodeInfo) bool {
+	return strings.EqualFold(b.IP, other.IP) &&
+		b.Port == other.Port
+}
 
 func NewID(ip string, port int) ([]byte, error) {
 	dumb := []byte(ip + ":" + strconv.FormatInt(int64(port), 10))
@@ -15,7 +26,7 @@ func NewID(ip string, port int) ([]byte, error) {
 	return []byte(hashValue[:]), nil
 }
 
-func CastKBucket(nodes *[]godemlia.NodeInfo) *pb.KBucket {
+func CastKBucket(nodes *[]NodeInfo) *pb.KBucket {
 	result := pb.KBucket{Bucket: []*pb.NodeInfo{}}
 	for _, node := range *nodes {
 		result.Bucket = append(result.Bucket,

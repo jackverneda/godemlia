@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackverneda/godemlia/internal/basic"
 	"github.com/jackverneda/godemlia/pb"
-	godemlia "github.com/jackverneda/godemlia/pkg"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -47,7 +47,7 @@ func NewNodeClient(ip string, port int) *NodeClient {
 	}
 }
 
-func (fn *NodeClient) Ping(sender godemlia.NodeInfo) (*godemlia.NodeInfo, error) {
+func (fn *NodeClient) Ping(sender basic.NodeInfo) (*basic.NodeInfo, error) {
 	nodeChnn := make(chan *pb.NodeInfo)
 
 	go func() {
@@ -71,7 +71,7 @@ func (fn *NodeClient) Ping(sender godemlia.NodeInfo) (*godemlia.NodeInfo, error)
 		log := fmt.Sprintf("ERR: Node (%s:%d) doesn't respond", fn.IP, fn.Port)
 		return nil, errors.New(log)
 	case node := <-nodeChnn:
-		return &godemlia.NodeInfo{
+		return &basic.NodeInfo{
 			ID:   node.ID,
 			IP:   node.IP,
 			Port: int(node.Port),

@@ -6,7 +6,7 @@ import (
 	"encoding/gob"
 	"net"
 
-	godemlia "github.com/jackverneda/godemlia/pkg"
+	"github.com/jackverneda/godemlia/internal/basic"
 )
 
 type Message struct {
@@ -14,7 +14,7 @@ type Message struct {
 	Buffer *[]byte
 }
 
-func SerializeMessage(q *[]godemlia.NodeInfo) (*[]byte, error) {
+func SerializeMessage(q *[]basic.NodeInfo) (*[]byte, error) {
 	var msgBuffer bytes.Buffer
 	enc := gob.NewEncoder(&msgBuffer)
 
@@ -41,7 +41,7 @@ func SerializeMessage(q *[]godemlia.NodeInfo) (*[]byte, error) {
 	return &result, nil
 }
 
-func DeserializeMessage(conn *net.TCPConn) (*[]godemlia.NodeInfo, error) {
+func DeserializeMessage(conn *net.TCPConn) (*[]basic.NodeInfo, error) {
 	defer conn.Close()
 
 	amountNodes := make([]byte, 8)
@@ -76,11 +76,11 @@ func DeserializeMessage(conn *net.TCPConn) (*[]godemlia.NodeInfo, error) {
 
 	reader := bytes.NewBuffer(msgBytes)
 
-	resp := []godemlia.NodeInfo{}
+	resp := []basic.NodeInfo{}
 	dec := gob.NewDecoder(reader)
 
 	for i := 0; i < int(amount); i++ {
-		node := godemlia.NodeInfo{}
+		node := basic.NodeInfo{}
 		err = dec.Decode(&node)
 		if err != nil {
 			return nil, err

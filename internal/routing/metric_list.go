@@ -4,20 +4,20 @@ import (
 	"bytes"
 	"math/big"
 
-	godemlia "github.com/jackverneda/godemlia/pkg"
+	"github.com/jackverneda/godemlia/internal/basic"
 )
 
 // nodeList is used in order to sort a list of arbitrary nodes against a
 // comparator. These nodes are sorted by xor distance
 type ShortList struct {
 	// Nodes are a list of nodes to be compared
-	Nodes *[]godemlia.NodeInfo
+	Nodes *[]basic.NodeInfo
 
 	// Comparator is the ID to compare to
 	Comparator []byte
 }
 
-func areNodesEqual(n1 *godemlia.NodeInfo, n2 *godemlia.NodeInfo, allowNilID bool) bool {
+func areNodesEqual(n1 *basic.NodeInfo, n2 *basic.NodeInfo, allowNilID bool) bool {
 	if n1 == nil || n2 == nil {
 		return false
 	}
@@ -38,7 +38,7 @@ func areNodesEqual(n1 *godemlia.NodeInfo, n2 *godemlia.NodeInfo, allowNilID bool
 	return true
 }
 
-func (n *ShortList) RemoveNode(node *godemlia.NodeInfo) {
+func (n *ShortList) RemoveNode(node *basic.NodeInfo) {
 	for i := 0; i < n.Len(); i++ {
 		if bytes.Equal((*n.Nodes)[i].ID, node.ID) {
 			*n.Nodes = append((*n.Nodes)[:i], (*n.Nodes)[i+1:]...)
@@ -47,7 +47,7 @@ func (n *ShortList) RemoveNode(node *godemlia.NodeInfo) {
 	}
 }
 
-func (n *ShortList) Append(nodes []*godemlia.NodeInfo) {
+func (n *ShortList) Append(nodes []*basic.NodeInfo) {
 	////fmt.Println(nodes)
 	for _, vv := range nodes {
 		exists := false

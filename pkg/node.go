@@ -10,14 +10,13 @@ import (
 	"sort"
 	"time"
 
+	"github.com/jackverneda/godemlia/internal/basic"
 	"github.com/jackverneda/godemlia/internal/dht"
+	"github.com/jackverneda/godemlia/internal/message"
+	"github.com/jackverneda/godemlia/internal/network"
 	"github.com/jackverneda/godemlia/internal/routing"
 	"github.com/jackverneda/godemlia/internal/storage"
 	"github.com/jackverneda/godemlia/pb"
-	godemlia "github.com/jackverneda/godemlia/pkg"
-	"github.com/jackverneda/godemlia/pkg/message"
-	"github.com/jackverneda/godemlia/pkg/network"
-	"github.com/jackverneda/godemlia/pkg/utils"
 	"github.com/jbenet/go-base58"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -30,8 +29,8 @@ type Node struct {
 
 func NewNode(nodeIP string, nodePort, bootstrapPort int, storage storage.IPersistance, isBootstrapNode bool) *Node {
 
-	id, _ := utils.NewID(nodeIP, nodePort)
-	node := godemlia.NodeInfo{ID: id, IP: nodeIP, Port: nodePort}
+	id, _ := basic.NewID(nodeIP, nodePort)
+	node := basic.NodeInfo{ID: id, IP: nodeIP, Port: nodePort}
 	dht := dht.DHT{
 		RoutingTable: routing.NewRoutingTable(node),
 		IPersistance: storage,
@@ -73,7 +72,7 @@ func (n *Node) CreateGRPCServer(grpcServerAddress string) {
 func (n *Node) Ping(ctx context.Context, sender *pb.NodeInfo) (*pb.NodeInfo, error) {
 
 	// add the sender to the Routing Table
-	_sender := godemlia.NodeInfo{
+	_sender := basic.NodeInfo{
 		ID:   sender.ID,
 		IP:   sender.IP,
 		Port: int(sender.Port),
@@ -111,7 +110,7 @@ func (n *Node) Store(stream pb.Node_StoreServer) error {
 		if init == 0 {
 			//fmt.Printf("INIT Streaming\n\n")
 			// add the sender to the Routing Table
-			sender := godemlia.NodeInfo{
+			sender := basic.NodeInfo{
 				ID:   data.Sender.ID,
 				IP:   data.Sender.IP,
 				Port: int(data.Sender.Port),
@@ -141,7 +140,7 @@ func (n *Node) Store(stream pb.Node_StoreServer) error {
 
 func (n *Node) FindNode(ctx context.Context, target *pb.Target) (*pb.KBucket, error) {
 	// add the sender to the Routing Table
-	sender := godemlia.NodeInfo{
+	sender := basic.NodeInfo{
 		ID:   target.Sender.ID,
 		IP:   target.Sender.IP,
 		Port: int(target.Sender.Port),
@@ -150,12 +149,12 @@ func (n *Node) FindNode(ctx context.Context, target *pb.Target) (*pb.KBucket, er
 
 	bucket := n.dht.FindNode(&target.ID)
 
-	return utils.CastKBucket(bucket), nil
+	return basic.CastKBucket(bucket), nil
 }
 
 func (fn *Node) FindValue(target *pb.Target, stream pb.Node_FindValueServer) error {
 	// add the sender to the Routing Table
-	sender := godemlia.NodeInfo{
+	sender := basic.NodeInfo{
 		ID:   target.Sender.ID,
 		IP:   target.Sender.IP,
 		Port: int(target.Sender.Port),
@@ -167,7 +166,7 @@ func (fn *Node) FindValue(target *pb.Target, stream pb.Node_FindValueServer) err
 
 	if value == nil && neighbors != nil {
 		response = pb.FindValueResponse{
-			KNeartestBuckets: utils.CastKBucket(neighbors),
+			KNeartestBuckets: basic.CastKBucket(neighbors),
 			Value: &pb.Data{
 				Init:   0,
 				End:    0,
@@ -194,8 +193,8 @@ func (fn *Node) FindValue(target *pb.Target, stream pb.Node_FindValueServer) err
 
 // ======================== CORE KADEMLIA PROTOCOL ===========================
 
-func (fn *Node) LookUp(target []byte) ([]godemlia.NodeInfo, error) {
-	sl := fn.dht.RoutingTable.GetClosestContacts(routing.ALPHA, target, []*godemlia.NodeInfo{})
+func (fn *Node) LookUp(target []byte) ([]basic.NodeInfo, error) {
+	sl := fn.dht.RoutingTable.GetClosestContacts(routing.ALPHA, target, []*basic.NodeInfo{})
 
 	contacted := make(map[string]bool)
 	contacted[string(fn.dht.ID)] = true
@@ -224,10 +223,10 @@ func (fn *Node) LookUp(target []byte) ([]godemlia.NodeInfo, error) {
 
 			// function to add the received nodes into the short list
 			addRecvNodes := func(recvNodes *pb.KBucket) {
-				kBucket := []*godemlia.NodeInfo{}
+				kBucket := []*basic.NodeInfo{}
 				for _, pbNode := range recvNodes.Bucket {
 					if !contacted[string(pbNode.ID)] {
-						kBucket = append(kBucket, &godemlia.NodeInfo{
+						kBucket = append(kBucket, &basic.NodeInfo{
 							ID:   pbNode.ID,
 							IP:   pbNode.IP,
 							Port: int(pbNode.Port),
@@ -274,14 +273,14 @@ func (fn *Node) LookUp(target []byte) ([]godemlia.NodeInfo, error) {
 		}
 	}
 
-	kBucket := []godemlia.NodeInfo{}
+	kBucket := []basic.NodeInfo{}
 
 	for i, node := range *sl.Nodes {
 		if i == routing.K {
 			break
 		}
 		//fmt.Println("append node", node.IP)
-		kBucket = append(kBucket, godemlia.NodeInfo{
+		kBucket = append(kBucket, basic.NodeInfo{
 			ID:   node.ID,
 			IP:   node.IP,
 			Port: node.Port,
@@ -309,7 +308,7 @@ func (fn *Node) StoreValue(key string, data *[]byte) (string, error) {
 	}
 
 	for index, node := range nearestNeighbors {
-		if index == routing.K-1 && utils.ClosestNodeToKey(keyHash, fn.dht.ID, node.ID) == -1 {
+		if index == routing.K-1 && basic.ClosestNodeToKey(keyHash, fn.dht.ID, node.ID) == -1 {
 			err := fn.dht.Store(keyHash, data)
 			if err != nil {
 				fmt.Printf("ERROR DHT.Store(Me)\n\n")

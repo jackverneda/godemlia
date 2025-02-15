@@ -6,7 +6,7 @@ import (
 	"net"
 	"strings"
 
-	"github.com/jackverneda/godemlia/pkg/message"
+	"github.com/jackverneda/godemlia/internal/message"
 )
 
 type Broadcast struct {
