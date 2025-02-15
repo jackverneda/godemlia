@@ -40,3 +40,53 @@ func SerializeMessage(q *[]godemlia.NodeInfo) (*[]byte, error) {
 
 	return &result, nil
 }
+
+func DeserializeMessage(conn *net.TCPConn) (*[]godemlia.NodeInfo, error) {
+	defer conn.Close()
+
+	amountNodes := make([]byte, 8)
+	_, err := conn.Read(amountNodes)
+	if err != nil {
+		return nil, err
+	}
+
+	amountReader := bytes.NewBuffer(amountNodes)
+	amount, err := binary.ReadUvarint(amountReader)
+	if err != nil {
+		return nil, err
+	}
+
+	lengthBytes := make([]byte, 16)
+	_, err = conn.Read(lengthBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	lengthReader := bytes.NewBuffer(lengthBytes)
+	length, err := binary.ReadUvarint(lengthReader)
+	if err != nil {
+		return nil, err
+	}
+
+	msgBytes := make([]byte, length)
+	_, err = conn.Read(msgBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	reader := bytes.NewBuffer(msgBytes)
+
+	resp := []godemlia.NodeInfo{}
+	dec := gob.NewDecoder(reader)
+
+	for i := 0; i < int(amount); i++ {
+		node := godemlia.NodeInfo{}
+		err = dec.Decode(&node)
+		if err != nil {
+			return nil, err
+		}
+		resp = append(resp, node)
+	}
+
+	return &resp, nil
+}

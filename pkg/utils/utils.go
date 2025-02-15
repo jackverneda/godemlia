@@ -2,11 +2,39 @@ package utils
 
 import (
 	"crypto/sha1"
+	"math/big"
 	"strconv"
+
+	"github.com/jackverneda/godemlia/pb"
+	godemlia "github.com/jackverneda/godemlia/pkg"
 )
 
 func NewID(ip string, port int) ([]byte, error) {
 	dumb := []byte(ip + ":" + strconv.FormatInt(int64(port), 10))
 	hashValue := sha1.Sum(dumb)
 	return []byte(hashValue[:]), nil
+}
+
+func CastKBucket(nodes *[]godemlia.NodeInfo) *pb.KBucket {
+	result := pb.KBucket{Bucket: []*pb.NodeInfo{}}
+	for _, node := range *nodes {
+		result.Bucket = append(result.Bucket,
+			&pb.NodeInfo{
+				ID:   node.ID,
+				IP:   node.IP,
+				Port: int32(node.Port),
+			},
+		)
+	}
+	return &result
+}
+
+func ClosestNodeToKey(key []byte, id1 []byte, id2 []byte) int {
+	buf1 := new(big.Int).SetBytes(key)
+	buf2 := new(big.Int).SetBytes(id1)
+	buf3 := new(big.Int).SetBytes(id2)
+	result1 := new(big.Int).Xor(buf1, buf2)
+	result2 := new(big.Int).Xor(buf1, buf3)
+
+	return result1.Cmp(result2)
 }
