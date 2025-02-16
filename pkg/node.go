@@ -305,9 +305,18 @@ func (fn *Node) LookUp(target []byte) ([]basic.NodeInfo, error) {
 	return kBucket, nil
 }
 
-func (fn *Node) StoreValue(entity string, key string, info string, data *[]byte) (string, error) {
+func (fn *Node) StoreValue(entity string, info string, data *[]byte) (string, error) {
 	//fmt.Printf("INIT FullNode.StoreValue(%s) method\n\n", key)
 	// defer //fmt.Printf("EXIT FullNode.StoreValue(%s) method\n\n", key)
+	key := info
+	if entity != fn.dht.MainEntity() {
+		payload := map[string]interface{}{}
+		err := json.Unmarshal(*data, &payload)
+		if err != nil {
+			return "", nil
+		}
+		key = payload[fn.dht.MainEntity()+"_id"].(string)
+	}
 
 	keyHash := base58.Decode(key)
 	nearestNeighbors, err := fn.LookUp(keyHash)
@@ -542,22 +551,13 @@ func (fn *Node) Republish() {
 				}
 
 				infoStr := base58.Encode(info)
-				keyStr := infoStr
-				if entity != fn.dht.MainEntity() {
-					payload := map[string]interface{}{}
-					err := json.Unmarshal(*data, &payload)
-					if err != nil {
-						continue
-					}
-					keyStr = payload[entity+"_id"].(string)
-				}
 
-				fmt.Println("Entity: ", entity, " Key: ", infoStr, " Data: ", data)
+				fmt.Println("Entity: ", entity, " ID: ", infoStr, " Data: ", data)
 				// if len(keyStr) == 0 || len(*data) == 0 {
 				// 	break
 				// }
 				go func() {
-					fn.StoreValue(entity, infoStr, keyStr, data)
+					fn.StoreValue(entity, infoStr, data)
 				}()
 			}
 		}

@@ -2,7 +2,6 @@ package test
 
 import (
 	"crypto/sha1"
-	"encoding/json"
 	"fmt"
 
 	kademlia "github.com/jackverneda/godemlia/pkg"
@@ -32,16 +31,16 @@ func (p *Peer) Store(entity string, data *[]byte) (*[]byte, error) {
 	hash := sha1.Sum(*data)
 	infoHash := base58.Encode(hash[:])
 
-	payload := map[string]interface{}{}
-	err := json.Unmarshal(*data, &payload)
-	if err != nil {
-		return nil, err
-	}
+	// payload := map[string]interface{}{}
+	// err := json.Unmarshal(*data, &payload)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
-	keyHash := payload[entity+"_id"].(string)
+	// keyHash := payload[entity+"_id"].(string)
 
 	// fmt.Println("Before StoreValue()")
-	_, err = p.StoreValue(entity, keyHash, infoHash, data)
+	_, err := p.StoreValue(entity, infoHash, data)
 	if err != nil {
 		return nil, err
 	}

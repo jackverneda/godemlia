@@ -6,6 +6,6 @@ type IInfrastructure interface {
 	GetKeys() map[string][][]byte
 	// Create()
 	// Update()
-	Store(entity string, key []byte, data *[]byte) (response *[]byte, err error)
-	Read(entity string, key []byte) (response *[]byte, err error)
+	Store(entity string, id []byte, data *[]byte) (response *[]byte, err error)
+	Read(entity string, id []byte) (response *[]byte, err error)
 }
