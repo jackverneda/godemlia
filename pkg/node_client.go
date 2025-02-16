@@ -18,7 +18,7 @@ type NodeClient struct {
 	Port int
 }
 
-func NewNodeClient(ip string, port int) *NodeClient {
+func NewNodeClient(ip string, port int) (*NodeClient, error) {
 	address := fmt.Sprintf("%s:%d", ip, port)
 	grpcConn := make(chan grpc.ClientConn)
 
@@ -35,7 +35,7 @@ func NewNodeClient(ip string, port int) *NodeClient {
 
 	select {
 	case <-time.After(5 * time.Second):
-		return nil
+		return nil, errors.New("ERR: Couldn't connect to the node")
 	case conn := <-grpcConn:
 		client := pb.NewNodeClient(&conn)
 		fnClient := NodeClient{
@@ -43,7 +43,7 @@ func NewNodeClient(ip string, port int) *NodeClient {
 			IP:         ip,
 			Port:       port,
 		}
-		return &fnClient
+		return &fnClient, nil
 	}
 }
 

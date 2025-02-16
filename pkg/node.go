@@ -230,8 +230,8 @@ func (fn *Node) LookUp(target []byte) ([]basic.NodeInfo, error) {
 			contacted[string(node.ID)] = true
 
 			// get RPC client
-			client := NewNodeClient(node.IP, 8080)
-			if client == nil {
+			client, err := NewNodeClient(node.IP, 8080)
+			if err != nil {
 				continue
 			}
 
@@ -330,16 +330,15 @@ func (fn *Node) StoreValue(key string, data *[]byte) (string, error) {
 			break
 		}
 
-		client := NewNodeClient(node.IP, node.Port)
+		client, err := NewNodeClient(node.IP, node.Port)
+		if err != nil {
+			continue
+		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		if client == nil {
-			continue
-		}
-
-		_, err := client.Store(ctx, &pb.StoreData{
+		_, err = client.Store(ctx, &pb.StoreData{
 			Key: keyHash,
 			Sender: &pb.NodeInfo{
 				ID:   fn.dht.ID,
@@ -391,8 +390,8 @@ func (fn *Node) GetValue(target string, start int64, end int64) ([]byte, error) 
 		clientChnn := make(chan pb.NodeClient)
 
 		go func() {
-			client := NewNodeClient(node.IP, node.Port)
-			if client == nil {
+			client, err := NewNodeClient(node.IP, node.Port)
+			if err != nil {
 				return
 			}
 			clientChnn <- client.NodeClient
@@ -492,7 +491,11 @@ func (fn *Node) joinNetwork(port int) {
 		}
 
 		for _, node := range *kBucket {
-			client := NewNodeClient(node.IP, node.Port)
+			client, err := NewNodeClient(node.IP, node.Port)
+			if err != nil {
+				continue
+			}
+
 			resp, _ := client.Ping(*fn.dht.NodeInfo)
 			if resp.Equal(node) {
 				fn.dht.RoutingTable.AddNode(node)

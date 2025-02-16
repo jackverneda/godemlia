@@ -5,6 +5,7 @@ import (
 	"log"
 	"net"
 
+	"github.com/jackverneda/godemlia/internal/network"
 	"github.com/jackverneda/godemlia/pb"
 	"github.com/jackverneda/godemlia/test"
 	"google.golang.org/grpc"
@@ -12,14 +13,14 @@ import (
 )
 
 var (
-	// ip   = network.GetIpFromHost()
+	ip   = network.GetIpFromHost()
 	port = 8080
 )
 
 func main() {
-	// if ip == "" {
-	ip := "0.0.0.0"
-	// }
+	if ip == "" {
+		ip = "0.0.0.0"
+	}
 	fmt.Println("IP: ", ip)
 	peer := test.NewPeer(ip, port, 32140, true)
 
@@ -39,4 +40,8 @@ func main() {
 	if err != nil {
 		log.Fatal("cannot create grpc server: ", err)
 	}
+
+	payload := []byte("{\"username\":\"jackverneda\",\"email\":\"email\",\"password\":\"\"}")
+	peer.Store(&payload)
+
 }
