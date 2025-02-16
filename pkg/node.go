@@ -491,6 +491,7 @@ func (fn *Node) joinNetwork(port int) {
 		}
 
 		for _, node := range *kBucket {
+			fmt.Printf("Node: %s\n", node.IP)
 			client, err := NewNodeClient(node.IP, node.Port)
 			if err != nil {
 				continue
