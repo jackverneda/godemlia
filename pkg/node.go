@@ -339,7 +339,15 @@ func (fn *Node) StoreValue(key string, data *[]byte) (string, error) {
 			continue
 		}
 
-		sender, err := client.Store(ctx)
+		_, err := client.Store(ctx, &pb.StoreData{
+			Key: keyHash,
+			Sender: &pb.NodeInfo{
+				ID:   fn.dht.ID,
+				IP:   fn.dht.IP,
+				Port: int32(fn.dht.Port),
+			},
+			Value: *data,
+		})
 		if err != nil {
 			//fmt.Printf("ERROR Store(%v, %d) method", node.IP, node.Port)
 			if ctx.Err() == context.DeadlineExceeded {
@@ -350,20 +358,6 @@ func (fn *Node) StoreValue(key string, data *[]byte) (string, error) {
 			//fmt.Println(err.Error())
 		}
 		// //fmt.Println("data bytes", dataBytes)
-		err = sender.Send(
-			&pb.StoreData{
-				Key: keyHash,
-				Sender: &pb.NodeInfo{
-					ID:   fn.dht.ID,
-					IP:   fn.dht.IP,
-					Port: int32(fn.dht.Port),
-				},
-				Value: *data,
-			},
-		)
-		if err != nil {
-
-		}
 
 	}
 
@@ -444,31 +438,10 @@ func (fn *Node) GetValue(target string, start int64, end int64) ([]byte, error) 
 				//fmt.Println(err.Error())
 				continue
 			}
-			var init int64 = 0
-
-			for {
-				data, err := receiver.Recv()
-				if err != nil {
-					//fmt.Println(err.Error())
-					break
-				}
-				if data == nil {
-					break
-				} else if init == data.Value.Init {
-					buffer = append(buffer, data.Value.Buffer...)
-					init = data.Value.End
-				}
-			}
-			////fmt.Println("Received value from STREAMING in GetValue():", buffer)
-			// Received data
-			if len(buffer) > 0 {
-				// break
-				goto RETURN
-			}
+			buffer = receiver.Value
 		}
 	}
 
-RETURN:
 	return buffer, nil
 }
 

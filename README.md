@@ -23,3 +23,7 @@ kademlia/
 ## Generate ProtocolBuffer files from gRPC
 export PATH="$PATH:$(go env GOPATH)/bin"
 protoc --go_out=../ --go-grpc_out=../ kademlia.proto
+
+## Test containers
+docker build -t test:lastest ./test
+docker run -it --network test_kademlia --network-alias test_kademlia -v "$(pwd)":/app -w /app test:lastest sh
