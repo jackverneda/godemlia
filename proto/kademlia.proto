@@ -20,17 +20,18 @@ message Request {
 }
 
 message StoreData{
-    NodeInfo Sender = 1;
+    string Entity = 1;
     bytes Key = 2;
-    bytes Value = 3;
+    bytes ID = 3;
+    bytes Value = 4;
+    NodeInfo Sender = 5;
 }
 
 message Target {
-    bytes ID    = 1;
-    string Path = 2;
-    int64 Init  = 3;
-    int64 End   = 4;
-    NodeInfo Sender = 5;
+    string Entity = 1;
+    bytes Key = 2;
+    bytes ID  = 3;
+    NodeInfo Sender = 4;
 }
 
 message KBucket {

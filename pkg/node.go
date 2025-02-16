@@ -2,6 +2,7 @@ package kademlia
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -89,10 +90,11 @@ func (n *Node) Ping(ctx context.Context, sender *pb.NodeInfo) (*pb.NodeInfo, err
 }
 
 func (n *Node) Store(ctx context.Context, data *pb.StoreData) (*pb.Response, error) {
-	//fmt.Printf("INIT FullNode.Store()\n\n")
-	// defer //fmt.Printf("END FullNode.Store()\n\n")
+	fmt.Printf("INIT Node.Store()\n\n")
+	defer fmt.Printf("END Node.Store()\n\n")
 
-	key := data.Key
+	Entity := data.Entity
+	id := data.ID
 	buffer := []byte(data.Value)
 	sender := basic.NodeInfo{
 		ID:   data.Sender.ID,
@@ -103,7 +105,7 @@ func (n *Node) Store(ctx context.Context, data *pb.StoreData) (*pb.Response, err
 
 	// //fmt.Println("Received Data:", buffer)
 
-	err := n.dht.Store(key, &buffer)
+	err := n.dht.Store(Entity, id, &buffer)
 	if err != nil {
 		//fmt.Printf("ERROR line:140 DHT.Store()\n\n")
 		return nil, err
@@ -184,7 +186,7 @@ func (fn *Node) FindValue(ctx context.Context, target *pb.Target) (*pb.FindValue
 	}
 	fn.dht.RoutingTable.AddNode(sender)
 
-	value, neighbors := fn.dht.FindValue(&target.ID, target.Init, target.End)
+	value, neighbors := fn.dht.FindValue(target.Entity, &target.ID)
 	response := pb.FindValueResponse{}
 
 	if value == nil && neighbors != nil {
@@ -303,7 +305,7 @@ func (fn *Node) LookUp(target []byte) ([]basic.NodeInfo, error) {
 	return kBucket, nil
 }
 
-func (fn *Node) StoreValue(key string, data *[]byte) (string, error) {
+func (fn *Node) StoreValue(entity string, key string, info string, data *[]byte) (string, error) {
 	//fmt.Printf("INIT FullNode.StoreValue(%s) method\n\n", key)
 	// defer //fmt.Printf("EXIT FullNode.StoreValue(%s) method\n\n", key)
 
@@ -314,8 +316,9 @@ func (fn *Node) StoreValue(key string, data *[]byte) (string, error) {
 		return "", err
 	}
 
+	infoHash := base58.Decode(info)
 	if len(nearestNeighbors) < routing.K {
-		err := fn.dht.Store(keyHash, data)
+		err := fn.dht.Store(entity, infoHash, data)
 		if err != nil {
 			fmt.Printf("ERROR DHT.Store(Me)\n\n")
 		}
@@ -323,7 +326,7 @@ func (fn *Node) StoreValue(key string, data *[]byte) (string, error) {
 
 	for index, node := range nearestNeighbors {
 		if index == routing.K-1 && basic.ClosestNodeToKey(keyHash, fn.dht.ID, node.ID) == -1 {
-			err := fn.dht.Store(keyHash, data)
+			err := fn.dht.Store(entity, infoHash, data)
 			if err != nil {
 				fmt.Printf("ERROR DHT.Store(Me)\n\n")
 			}
@@ -340,6 +343,7 @@ func (fn *Node) StoreValue(key string, data *[]byte) (string, error) {
 
 		_, err = client.Store(ctx, &pb.StoreData{
 			Key: keyHash,
+			ID:  infoHash,
 			Sender: &pb.NodeInfo{
 				ID:   fn.dht.ID,
 				IP:   fn.dht.IP,
@@ -365,18 +369,18 @@ func (fn *Node) StoreValue(key string, data *[]byte) (string, error) {
 	return key, nil
 }
 
-func (fn *Node) GetValue(target string, start int64, end int64) ([]byte, error) {
+func (fn *Node) GetValue(entity string, target string) ([]byte, error) {
 	keyHash := base58.Decode(target)
 
-	// val, err := fn.dht.IPersistance.Read(keyHash, start, end)
-	val, err := fn.dht.IInfrastructure.Handle("READ", "user", nil)
+	val, err := fn.dht.IInfrastructure.Read(entity, keyHash)
+	// val, err := fn.dht.IInfrastructure.Handle("READ", "user", nil)
 	if err == nil {
 		return *val, nil
 	}
 
 	nearestNeighbors, err := fn.LookUp(keyHash)
 	if err != nil {
-		return nil, nil
+		return nil, err
 	}
 	////fmt.Println(nearestNeighbors)
 	buffer := []byte{}
@@ -414,14 +418,13 @@ func (fn *Node) GetValue(target string, start int64, end int64) ([]byte, error) 
 			//fmt.Println("Init FindValue")
 			receiver, err := client.FindValue(ctx,
 				&pb.Target{
-					ID: keyHash,
+					Entity: entity,
+					ID:     keyHash,
 					Sender: &pb.NodeInfo{
 						ID:   fn.dht.ID,
 						IP:   fn.dht.IP,
 						Port: int32(fn.dht.Port),
 					},
-					Init: start,
-					End:  end,
 				},
 			)
 			if err != nil || receiver == nil {
@@ -527,21 +530,37 @@ func (n *Node) PrintRoutingTable() {
 func (fn *Node) Republish() {
 	for {
 		<-time.After(time.Minute)
-		// 	keys := fn.dht.IPersistance.GetKeys()
-		// 	if len(keys) == 0 {
-		// 		continue
-		// 	}
-		// 	for _, key := range keys {
-		// 		data, _ := fn.dht.IPersistance.Read(key, 0, 0)
-		// 		keyStr := base58.Encode(key)
-		// 		fmt.Println("Key:", keyStr, "Data:", data)
-		// 		if len(keyStr) == 0 || len(*data) == 0 {
-		// 			break
-		// 		}
-		// 		go func() {
-		// fn.StoreValue(keyStr, data)
-		// 		}()
-		// 	}
+		mapper := fn.dht.IInfrastructure.GetKeys()
+		if len(mapper) == 0 {
+			continue
+		}
+		for entity, infos := range mapper {
+			for _, info := range infos {
+				data, err := fn.dht.IInfrastructure.Read(entity, info)
+				if err != nil {
+					continue
+				}
+
+				infoStr := base58.Encode(info)
+				keyStr := infoStr
+				if entity != fn.dht.MainEntity() {
+					payload := map[string]interface{}{}
+					err := json.Unmarshal(*data, &payload)
+					if err != nil {
+						continue
+					}
+					keyStr = payload[entity+"_id"].(string)
+				}
+
+				fmt.Println("Entity: ", entity, " Key: ", infoStr, " Data: ", data)
+				// if len(keyStr) == 0 || len(*data) == 0 {
+				// 	break
+				// }
+				go func() {
+					fn.StoreValue(entity, infoStr, keyStr, data)
+				}()
+			}
+		}
 		fmt.Println("Republish worked good for node:", fn.dht.ID)
 	}
 }

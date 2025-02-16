@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"time"
 
 	"github.com/jackverneda/godemlia/internal/network"
 	"github.com/jackverneda/godemlia/pb"
@@ -22,12 +23,22 @@ func main() {
 		ip = "0.0.0.0"
 	}
 	fmt.Println("IP: ", ip)
+	// peer := test.InitPeer(ip, port, 32140)
 	peer := test.NewPeer(ip, port, 32140, true)
 
 	grpcServer := grpc.NewServer()
 
 	pb.RegisterNodeServer(grpcServer, &peer.Node)
 	reflection.Register(grpcServer)
+
+	go func() {
+		<-time.After(time.Second * 5)
+		fmt.Println("WORKING")
+		payload := []byte("{\"username\":\"jackverneda\",\"email\":\"email\",\"password\":\"\"}")
+		peer.Store("user", &payload)
+	}()
+
+	go peer.Node.Republish()
 
 	grpcAddr := fmt.Sprintf("%s:%d", ip, port)
 	listener, err := net.Listen("tcp", grpcAddr)
@@ -40,8 +51,5 @@ func main() {
 	if err != nil {
 		log.Fatal("cannot create grpc server: ", err)
 	}
-
-	payload := []byte("{\"username\":\"jackverneda\",\"email\":\"email\",\"password\":\"\"}")
-	peer.Store(&payload)
 
 }

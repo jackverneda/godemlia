@@ -1,10 +1,11 @@
 package infrastructure
 
 type IInfrastructure interface {
-	Handle(action string, request string, data *[]byte) (response *[]byte, err error)
-
+	MainEntity() string
+	Handle(action string, entity string, data *[]byte) (response *[]byte, err error)
+	GetKeys() map[string][][]byte
 	// Create()
 	// Update()
-	// Delete()
-	// Read()
+	Store(entity string, key []byte, data *[]byte) (response *[]byte, err error)
+	Read(entity string, key []byte) (response *[]byte, err error)
 }

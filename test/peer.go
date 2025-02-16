@@ -2,6 +2,7 @@ package test
 
 import (
 	"crypto/sha1"
+	"encoding/json"
 	"fmt"
 
 	kademlia "github.com/jackverneda/godemlia/pkg"
@@ -13,7 +14,7 @@ type Peer struct {
 }
 
 func InitPeer(ip string, port, bootPort int) *Peer {
-	peer := NewPeer(ip, port, bootPort, false)
+	peer := NewPeer(ip, port, bootPort, true)
 	addr := fmt.Sprintf("%s:%d", ip, port)
 	go peer.CreateGRPCServer(addr)
 	return peer
@@ -26,17 +27,25 @@ func NewPeer(ip string, port, bootPort int, isBootstrapNode bool) *Peer {
 	return &Peer{*newPeer}
 }
 
-func (p *Peer) Store(data *[]byte) (string, error) {
+func (p *Peer) Store(entity string, data *[]byte) (*[]byte, error) {
 
 	hash := sha1.Sum(*data)
-	key := base58.Encode(hash[:])
+	infoHash := base58.Encode(hash[:])
 
-	//fmt.Println("Before StoreValue()")
-	_, err := p.StoreValue(key, data)
+	payload := map[string]interface{}{}
+	err := json.Unmarshal(*data, &payload)
 	if err != nil {
-		return "", nil
+		return nil, err
+	}
+
+	keyHash := payload[entity+"_id"].(string)
+
+	// fmt.Println("Before StoreValue()")
+	_, err = p.StoreValue(entity, keyHash, infoHash, data)
+	if err != nil {
+		return nil, err
 	}
 	//fmt.Println("After StoreValue()")
 
-	return key, nil
+	return data, nil
 }
