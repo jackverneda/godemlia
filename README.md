@@ -18,3 +18,8 @@ kademlia/
 │── README.md           # Documentation
 │── tests/              # Integration & unit tests
 │   ├── kademlia_test.go
+
+
+## Generate ProtocolBuffer files from gRPC
+export PATH="$PATH:$(go env GOPATH)/bin"
+protoc --go_out=../ --go-grpc_out=../ kademlia.proto

@@ -4,13 +4,13 @@ import (
 	"bytes"
 
 	"github.com/jackverneda/godemlia/internal/basic"
+	"github.com/jackverneda/godemlia/internal/infrastructure"
 	"github.com/jackverneda/godemlia/internal/routing"
-	"github.com/jackverneda/godemlia/internal/storage"
 )
 
 type DHT struct {
 	*routing.RoutingTable
-	storage.IPersistance
+	infrastructure.IInfrastructure
 }
 
 func (fn *DHT) Store(key []byte, data *[]byte) error {
@@ -18,7 +18,7 @@ func (fn *DHT) Store(key []byte, data *[]byte) error {
 	// defer //fmt.Printf("END DHT.Store(%v)\n", key)
 
 	//fmt.Println("Before Storage.Create()")
-	err := fn.IPersistance.Create(key, data)
+	_, err := fn.Handle("CREATE", "user", data)
 	//fmt.Println("After Storage.Create()")
 	if err != nil {
 		//fmt.Println("ERROR line:23 DHT.Storage.Create()")
@@ -28,12 +28,31 @@ func (fn *DHT) Store(key []byte, data *[]byte) error {
 }
 
 func (fn *DHT) FindValue(infoHash *[]byte, start int64, end int64) (value *[]byte, neighbors *[]basic.NodeInfo) {
-	value, err := fn.IPersistance.Read(*infoHash, start, end)
+	value, err := fn.Handle("READ", "user", nil)
 	if err != nil {
 		////fmt.Println("Find Value error: ", err)
 		neighbors = fn.RoutingTable.GetClosestContacts(routing.ALPHA, *infoHash, []*basic.NodeInfo{fn.NodeInfo}).Nodes
 		return nil, neighbors
 	}
+	return value, nil
+}
+
+func (fn *DHT) DeleteValue(infoHash *[]byte, start int64, end int64) error {
+	_, err := fn.Handle("DELETE", "user", nil)
+	if err != nil {
+		//fmt.Println("ERROR line:23 DHT.Storage.Create()")
+		return err
+	}
+	return err
+}
+
+func (fn *DHT) UpdateVaue(infoHash *[]byte, start int64, end int64) (value *[]byte, neighbors *[]basic.NodeInfo) {
+	// value, err := fn.Handle(*infoHash, nil, nil)
+	// if err != nil {
+	// 	////fmt.Println("Find Value error: ", err)
+	// 	neighbors = fn.RoutingTable.GetClosestContacts(routing.ALPHA, *infoHash, []*basic.NodeInfo{fn.NodeInfo}).Nodes
+	// 	return nil, neighbors
+	// }
 	return value, nil
 }
 

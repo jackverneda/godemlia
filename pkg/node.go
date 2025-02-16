@@ -5,17 +5,16 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"math"
 	"net"
 	"sort"
 	"time"
 
 	"github.com/jackverneda/godemlia/internal/basic"
 	"github.com/jackverneda/godemlia/internal/dht"
+	"github.com/jackverneda/godemlia/internal/infrastructure"
 	"github.com/jackverneda/godemlia/internal/message"
 	"github.com/jackverneda/godemlia/internal/network"
 	"github.com/jackverneda/godemlia/internal/routing"
-	"github.com/jackverneda/godemlia/internal/storage"
 	"github.com/jackverneda/godemlia/pb"
 	"github.com/jbenet/go-base58"
 	"google.golang.org/grpc"
@@ -27,13 +26,13 @@ type Node struct {
 	dht *dht.DHT
 }
 
-func NewNode(nodeIP string, nodePort, bootstrapPort int, storage storage.IPersistance, isBootstrapNode bool) *Node {
+func NewNode(nodeIP string, nodePort, bootstrapPort int, infra infrastructure.IInfrastructure, isBootstrapNode bool) *Node {
 
 	id, _ := basic.NewID(nodeIP, nodePort)
 	node := basic.NodeInfo{ID: id, IP: nodeIP, Port: nodePort}
 	dht := dht.DHT{
-		RoutingTable: routing.NewRoutingTable(node),
-		IPersistance: storage,
+		RoutingTable:    routing.NewRoutingTable(node),
+		IInfrastructure: infra,
 	}
 	Node := Node{dht: &dht}
 
@@ -53,7 +52,7 @@ func (n *Node) CreateGRPCServer(grpcServerAddress string) {
 	pb.RegisterNodeServer(grpcServer, n)
 	reflection.Register(grpcServer)
 
-	// go n.Republish()
+	go n.Republish()
 
 	listener, err := net.Listen("tcp", grpcServerAddress)
 	if err != nil {
@@ -70,6 +69,7 @@ func (n *Node) CreateGRPCServer(grpcServerAddress string) {
 // ======================== RPC KADEMLIA PROTOCOL ===========================
 
 func (n *Node) Ping(ctx context.Context, sender *pb.NodeInfo) (*pb.NodeInfo, error) {
+	fmt.Printf("PING FROM %s\n\n", sender.IP)
 
 	// add the sender to the Routing Table
 	_sender := basic.NodeInfo{
@@ -88,55 +88,78 @@ func (n *Node) Ping(ctx context.Context, sender *pb.NodeInfo) (*pb.NodeInfo, err
 	return receiver, nil
 }
 
-func (n *Node) Store(stream pb.Node_StoreServer) error {
+func (n *Node) Store(ctx context.Context, data *pb.StoreData) (*pb.Response, error) {
 	//fmt.Printf("INIT FullNode.Store()\n\n")
 	// defer //fmt.Printf("END FullNode.Store()\n\n")
 
-	key := []byte{}
-	buffer := []byte{}
-	var init int64 = 0
-
-	for {
-		data, err := stream.Recv()
-		if data == nil {
-			//fmt.Printf("END Streaming\n\n")
-			break
-		}
-		if err != nil {
-			//fmt.Printf("EXIT line:133 Store() method\n\n")
-			return errors.New("missing chunck")
-		}
-
-		if init == 0 {
-			//fmt.Printf("INIT Streaming\n\n")
-			// add the sender to the Routing Table
-			sender := basic.NodeInfo{
-				ID:   data.Sender.ID,
-				IP:   data.Sender.IP,
-				Port: int(data.Sender.Port),
-			}
-			n.dht.RoutingTable.AddNode(sender)
-		}
-
-		key = data.Key
-		if init == data.Value.Init {
-			buffer = append(buffer, data.Value.Buffer...)
-			init = data.Value.End
-		} else {
-			//fmt.Printf("ERROR missing chunck\n\n")
-			return err
-		}
-		//fmt.Printf("OKKKK ===> FullNode(%s).Recv(%d, %d)\n", n.dht.IP, data.Value.Init, data.Value.End)
+	key := data.Key
+	buffer := []byte(data.Value)
+	sender := basic.NodeInfo{
+		ID:   data.Sender.ID,
+		IP:   data.Sender.IP,
+		Port: int(data.Sender.Port),
 	}
+	n.dht.RoutingTable.AddNode(sender)
+
 	// //fmt.Println("Received Data:", buffer)
 
 	err := n.dht.Store(key, &buffer)
 	if err != nil {
 		//fmt.Printf("ERROR line:140 DHT.Store()\n\n")
-		return err
+		return nil, err
 	}
-	return nil
+	return nil, nil
 }
+
+// func (n *Node) Delete(stream pb.Node_StoreServer) error {
+// 	//fmt.Printf("INIT FullNode.Store()\n\n")
+// 	// defer //fmt.Printf("END FullNode.Store()\n\n")
+
+// 	key := []byte{}
+// 	buffer := []byte{}
+// 	var init int64 = 0
+
+// 	for {
+// 		data, err := stream.Recv()
+// 		if data == nil {
+// 			//fmt.Printf("END Streaming\n\n")
+// 			break
+// 		}
+// 		if err != nil {
+// 			//fmt.Printf("EXIT line:133 Store() method\n\n")
+// 			return errors.New("missing chunck")
+// 		}
+
+// 		if init == 0 {
+// 			//fmt.Printf("INIT Streaming\n\n")
+// 			// add the sender to the Routing Table
+// 			sender := basic.NodeInfo{
+// 				ID:   data.Sender.ID,
+// 				IP:   data.Sender.IP,
+// 				Port: int(data.Sender.Port),
+// 			}
+// 			n.dht.RoutingTable.AddNode(sender)
+// 		}
+
+// 		key = data.Key
+// 		if init == data.Value.Init {
+// 			buffer = append(buffer, data.Value.Buffer...)
+// 			init = data.Value.End
+// 		} else {
+// 			//fmt.Printf("ERROR missing chunck\n\n")
+// 			return err
+// 		}
+// 		//fmt.Printf("OKKKK ===> FullNode(%s).Recv(%d, %d)\n", n.dht.IP, data.Value.Init, data.Value.End)
+// 	}
+// 	// //fmt.Println("Received Data:", buffer)
+
+// 	err := n.dht.Store(key, &buffer)
+// 	if err != nil {
+// 		//fmt.Printf("ERROR line:140 DHT.Store()\n\n")
+// 		return err
+// 	}
+// 	return nil
+// }
 
 func (n *Node) FindNode(ctx context.Context, target *pb.Target) (*pb.KBucket, error) {
 	// add the sender to the Routing Table
@@ -152,7 +175,7 @@ func (n *Node) FindNode(ctx context.Context, target *pb.Target) (*pb.KBucket, er
 	return basic.CastKBucket(bucket), nil
 }
 
-func (fn *Node) FindValue(target *pb.Target, stream pb.Node_FindValueServer) error {
+func (fn *Node) FindValue(ctx context.Context, target *pb.Target) (*pb.FindValueResponse, error) {
 	// add the sender to the Routing Table
 	sender := basic.NodeInfo{
 		ID:   target.Sender.ID,
@@ -167,28 +190,19 @@ func (fn *Node) FindValue(target *pb.Target, stream pb.Node_FindValueServer) err
 	if value == nil && neighbors != nil {
 		response = pb.FindValueResponse{
 			KNeartestBuckets: basic.CastKBucket(neighbors),
-			Value: &pb.Data{
-				Init:   0,
-				End:    0,
-				Buffer: []byte{},
-			},
+			Value:            []byte{},
 		}
+
 	} else if value != nil && neighbors == nil {
 		//fmt.Println("Value from FindValue:", value)
 		response = pb.FindValueResponse{
 			KNeartestBuckets: &pb.KBucket{Bucket: []*pb.NodeInfo{}},
-			Value: &pb.Data{
-				Init:   0,
-				End:    int64(len(*value)),
-				Buffer: *value,
-			},
+			Value:            *value,
 		}
 	} else {
-		return errors.New("check code because this case shouldn't be valid")
+		return nil, errors.New("check code because this case shouldn't be valid")
 	}
-	stream.Send(&response)
-
-	return nil
+	return &response, nil
 }
 
 // ======================== CORE KADEMLIA PROTOCOL ===========================
@@ -336,31 +350,19 @@ func (fn *Node) StoreValue(key string, data *[]byte) (string, error) {
 			//fmt.Println(err.Error())
 		}
 		// //fmt.Println("data bytes", dataBytes)
-
-		for i := 0; i < len(*data); i += 1024 {
-			j := int(math.Min(float64(i+1024), float64(len(*data))))
-
-			err = sender.Send(
-				&pb.StoreData{
-					Sender: &pb.NodeInfo{
-						ID:   fn.dht.ID,
-						IP:   fn.dht.IP,
-						Port: int32(fn.dht.Port),
-					},
-					Key: keyHash,
-					Value: &pb.Data{
-						Init:   int64(i),
-						End:    int64(j),
-						Buffer: (*data)[i:j],
-					},
+		err = sender.Send(
+			&pb.StoreData{
+				Key: keyHash,
+				Sender: &pb.NodeInfo{
+					ID:   fn.dht.ID,
+					IP:   fn.dht.IP,
+					Port: int32(fn.dht.Port),
 				},
-			)
-			if err != nil {
-				//fmt.Printf("ERROR SendChunck(0, %d) method\n\n", len(*data))
-				break
-				// return "", err
-			}
-			//fmt.Printf("OKKKK ===> FullNode(%s).Send(%d, %d)\n", fn.dht.IP, i, j)
+				Value: *data,
+			},
+		)
+		if err != nil {
+
 		}
 
 	}
@@ -373,7 +375,8 @@ func (fn *Node) StoreValue(key string, data *[]byte) (string, error) {
 func (fn *Node) GetValue(target string, start int64, end int64) ([]byte, error) {
 	keyHash := base58.Decode(target)
 
-	val, err := fn.dht.IPersistance.Read(keyHash, start, end)
+	// val, err := fn.dht.IPersistance.Read(keyHash, start, end)
+	val, err := fn.dht.IInfrastructure.Handle("READ", "user", nil)
 	if err == nil {
 		return *val, nil
 	}
@@ -542,21 +545,21 @@ func (n *Node) PrintRoutingTable() {
 func (fn *Node) Republish() {
 	for {
 		<-time.After(time.Minute)
-		keys := fn.dht.IPersistance.GetKeys()
-		if len(keys) == 0 {
-			continue
-		}
-		for _, key := range keys {
-			data, _ := fn.dht.IPersistance.Read(key, 0, 0)
-			keyStr := base58.Encode(key)
-			fmt.Println("Key:", keyStr, "Data:", data)
-			if len(keyStr) == 0 || len(*data) == 0 {
-				break
-			}
-			go func() {
-				fn.StoreValue(keyStr, data)
-			}()
-		}
+		// 	keys := fn.dht.IPersistance.GetKeys()
+		// 	if len(keys) == 0 {
+		// 		continue
+		// 	}
+		// 	for _, key := range keys {
+		// 		data, _ := fn.dht.IPersistance.Read(key, 0, 0)
+		// 		keyStr := base58.Encode(key)
+		// 		fmt.Println("Key:", keyStr, "Data:", data)
+		// 		if len(keyStr) == 0 || len(*data) == 0 {
+		// 			break
+		// 		}
+		// 		go func() {
+		// fn.StoreValue(keyStr, data)
+		// 		}()
+		// 	}
 		fmt.Println("Republish worked good for node:", fn.dht.ID)
 	}
 }

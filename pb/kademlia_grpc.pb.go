@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.5.1
 // - protoc             v5.29.3
-// source: kademlia.proto
+// source: proto/kademlia.proto
 
 package pb
 
@@ -21,6 +21,7 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	Node_Ping_FullMethodName      = "/godemlia.Node/Ping"
 	Node_Store_FullMethodName     = "/godemlia.Node/Store"
+	Node_Delete_FullMethodName    = "/godemlia.Node/Delete"
 	Node_FindNode_FullMethodName  = "/godemlia.Node/FindNode"
 	Node_FindValue_FullMethodName = "/godemlia.Node/FindValue"
 )
@@ -30,9 +31,10 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type NodeClient interface {
 	Ping(ctx context.Context, in *NodeInfo, opts ...grpc.CallOption) (*NodeInfo, error)
-	Store(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[StoreData, Response], error)
+	Store(ctx context.Context, in *StoreData, opts ...grpc.CallOption) (*Response, error)
+	Delete(ctx context.Context, in *StoreData, opts ...grpc.CallOption) (*Response, error)
 	FindNode(ctx context.Context, in *Target, opts ...grpc.CallOption) (*KBucket, error)
-	FindValue(ctx context.Context, in *Target, opts ...grpc.CallOption) (grpc.ServerStreamingClient[FindValueResponse], error)
+	FindValue(ctx context.Context, in *Target, opts ...grpc.CallOption) (*FindValueResponse, error)
 }
 
 type nodeClient struct {
@@ -53,18 +55,25 @@ func (c *nodeClient) Ping(ctx context.Context, in *NodeInfo, opts ...grpc.CallOp
 	return out, nil
 }
 
-func (c *nodeClient) Store(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[StoreData, Response], error) {
+func (c *nodeClient) Store(ctx context.Context, in *StoreData, opts ...grpc.CallOption) (*Response, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &Node_ServiceDesc.Streams[0], Node_Store_FullMethodName, cOpts...)
+	out := new(Response)
+	err := c.cc.Invoke(ctx, Node_Store_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &grpc.GenericClientStream[StoreData, Response]{ClientStream: stream}
-	return x, nil
+	return out, nil
 }
 
-// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type Node_StoreClient = grpc.ClientStreamingClient[StoreData, Response]
+func (c *nodeClient) Delete(ctx context.Context, in *StoreData, opts ...grpc.CallOption) (*Response, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Response)
+	err := c.cc.Invoke(ctx, Node_Delete_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
 
 func (c *nodeClient) FindNode(ctx context.Context, in *Target, opts ...grpc.CallOption) (*KBucket, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
@@ -76,33 +85,25 @@ func (c *nodeClient) FindNode(ctx context.Context, in *Target, opts ...grpc.Call
 	return out, nil
 }
 
-func (c *nodeClient) FindValue(ctx context.Context, in *Target, opts ...grpc.CallOption) (grpc.ServerStreamingClient[FindValueResponse], error) {
+func (c *nodeClient) FindValue(ctx context.Context, in *Target, opts ...grpc.CallOption) (*FindValueResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &Node_ServiceDesc.Streams[1], Node_FindValue_FullMethodName, cOpts...)
+	out := new(FindValueResponse)
+	err := c.cc.Invoke(ctx, Node_FindValue_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &grpc.GenericClientStream[Target, FindValueResponse]{ClientStream: stream}
-	if err := x.ClientStream.SendMsg(in); err != nil {
-		return nil, err
-	}
-	if err := x.ClientStream.CloseSend(); err != nil {
-		return nil, err
-	}
-	return x, nil
+	return out, nil
 }
-
-// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type Node_FindValueClient = grpc.ServerStreamingClient[FindValueResponse]
 
 // NodeServer is the server API for Node service.
 // All implementations must embed UnimplementedNodeServer
 // for forward compatibility.
 type NodeServer interface {
 	Ping(context.Context, *NodeInfo) (*NodeInfo, error)
-	Store(grpc.ClientStreamingServer[StoreData, Response]) error
+	Store(context.Context, *StoreData) (*Response, error)
+	Delete(context.Context, *StoreData) (*Response, error)
 	FindNode(context.Context, *Target) (*KBucket, error)
-	FindValue(*Target, grpc.ServerStreamingServer[FindValueResponse]) error
+	FindValue(context.Context, *Target) (*FindValueResponse, error)
 	mustEmbedUnimplementedNodeServer()
 }
 
@@ -116,14 +117,17 @@ type UnimplementedNodeServer struct{}
 func (UnimplementedNodeServer) Ping(context.Context, *NodeInfo) (*NodeInfo, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Ping not implemented")
 }
-func (UnimplementedNodeServer) Store(grpc.ClientStreamingServer[StoreData, Response]) error {
-	return status.Errorf(codes.Unimplemented, "method Store not implemented")
+func (UnimplementedNodeServer) Store(context.Context, *StoreData) (*Response, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Store not implemented")
+}
+func (UnimplementedNodeServer) Delete(context.Context, *StoreData) (*Response, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Delete not implemented")
 }
 func (UnimplementedNodeServer) FindNode(context.Context, *Target) (*KBucket, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method FindNode not implemented")
 }
-func (UnimplementedNodeServer) FindValue(*Target, grpc.ServerStreamingServer[FindValueResponse]) error {
-	return status.Errorf(codes.Unimplemented, "method FindValue not implemented")
+func (UnimplementedNodeServer) FindValue(context.Context, *Target) (*FindValueResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method FindValue not implemented")
 }
 func (UnimplementedNodeServer) mustEmbedUnimplementedNodeServer() {}
 func (UnimplementedNodeServer) testEmbeddedByValue()              {}
@@ -164,12 +168,41 @@ func _Node_Ping_Handler(srv interface{}, ctx context.Context, dec func(interface
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Node_Store_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(NodeServer).Store(&grpc.GenericServerStream[StoreData, Response]{ServerStream: stream})
+func _Node_Store_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StoreData)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NodeServer).Store(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Node_Store_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NodeServer).Store(ctx, req.(*StoreData))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
-// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type Node_StoreServer = grpc.ClientStreamingServer[StoreData, Response]
+func _Node_Delete_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StoreData)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NodeServer).Delete(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Node_Delete_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NodeServer).Delete(ctx, req.(*StoreData))
+	}
+	return interceptor(ctx, in, info, handler)
+}
 
 func _Node_FindNode_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(Target)
@@ -189,16 +222,23 @@ func _Node_FindNode_Handler(srv interface{}, ctx context.Context, dec func(inter
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Node_FindValue_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(Target)
-	if err := stream.RecvMsg(m); err != nil {
-		return err
+func _Node_FindValue_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Target)
+	if err := dec(in); err != nil {
+		return nil, err
 	}
-	return srv.(NodeServer).FindValue(m, &grpc.GenericServerStream[Target, FindValueResponse]{ServerStream: stream})
+	if interceptor == nil {
+		return srv.(NodeServer).FindValue(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Node_FindValue_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NodeServer).FindValue(ctx, req.(*Target))
+	}
+	return interceptor(ctx, in, info, handler)
 }
-
-// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type Node_FindValueServer = grpc.ServerStreamingServer[FindValueResponse]
 
 // Node_ServiceDesc is the grpc.ServiceDesc for Node service.
 // It's only intended for direct use with grpc.RegisterService,
@@ -212,21 +252,22 @@ var Node_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Node_Ping_Handler,
 		},
 		{
+			MethodName: "Store",
+			Handler:    _Node_Store_Handler,
+		},
+		{
+			MethodName: "Delete",
+			Handler:    _Node_Delete_Handler,
+		},
+		{
 			MethodName: "FindNode",
 			Handler:    _Node_FindNode_Handler,
 		},
-	},
-	Streams: []grpc.StreamDesc{
 		{
-			StreamName:    "Store",
-			Handler:       _Node_Store_Handler,
-			ClientStreams: true,
-		},
-		{
-			StreamName:    "FindValue",
-			Handler:       _Node_FindValue_Handler,
-			ServerStreams: true,
+			MethodName: "FindValue",
+			Handler:    _Node_FindValue_Handler,
 		},
 	},
-	Metadata: "kademlia.proto",
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "proto/kademlia.proto",
 }
