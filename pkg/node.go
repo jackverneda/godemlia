@@ -491,13 +491,18 @@ func (fn *Node) joinNetwork(port int) {
 		}
 
 		for _, node := range *kBucket {
-			fmt.Printf("Node: %s\n", node.IP)
+			fmt.Printf("Node: %s", node.IP)
+			fmt.Printf(":%s\n", node.Port)
 			client, err := NewNodeClient(node.IP, node.Port)
 			if err != nil {
 				continue
 			}
 
-			resp, _ := client.Ping(*fn.dht.NodeInfo)
+			resp, err := client.Ping(*fn.dht.NodeInfo)
+			if err != nil {
+				continue
+			}
+
 			if resp.Equal(node) {
 				fn.dht.RoutingTable.AddNode(node)
 			}

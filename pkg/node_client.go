@@ -24,10 +24,11 @@ func NewNodeClient(ip string, port int) (*NodeClient, error) {
 
 	go func() {
 		// stablish connection
-		conn, _ := grpc.Dial(address,
+		conn, err := grpc.NewClient(address,
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
-			grpc.WithBlock())
-		if conn == nil {
+		)
+		if err != nil {
+			fmt.Println(err)
 			return
 		}
 		grpcConn <- *conn
@@ -36,6 +37,7 @@ func NewNodeClient(ip string, port int) (*NodeClient, error) {
 	select {
 	case <-time.After(5 * time.Second):
 		return nil, errors.New("ERR: Couldn't connect to the node")
+
 	case conn := <-grpcConn:
 		client := pb.NewNodeClient(&conn)
 		fnClient := NodeClient{
@@ -70,7 +72,11 @@ func (fn *NodeClient) Ping(sender basic.NodeInfo) (*basic.NodeInfo, error) {
 	case <-time.After(5 * time.Second):
 		log := fmt.Sprintf("ERR: Node (%s:%d) doesn't respond", fn.IP, fn.Port)
 		return nil, errors.New(log)
+
 	case node := <-nodeChnn:
+		if node == nil {
+			return nil, errors.New("ERR: Node doesn't respond")
+		}
 		return &basic.NodeInfo{
 			ID:   node.ID,
 			IP:   node.IP,
