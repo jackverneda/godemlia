@@ -329,7 +329,7 @@ func (fn *Node) StoreValue(entity string, info string, data *[]byte) (string, er
 	if len(nearestNeighbors) < routing.K {
 		err := fn.dht.Store(entity, infoHash, data)
 		if err != nil {
-			fmt.Printf("ERROR DHT.Store(Me)\n\n")
+			fmt.Printf("ERROR DHT.Store(Me) %s\n\n", err.Error())
 		}
 	}
 
@@ -337,7 +337,7 @@ func (fn *Node) StoreValue(entity string, info string, data *[]byte) (string, er
 		if index == routing.K-1 && basic.ClosestNodeToKey(keyHash, fn.dht.ID, node.ID) == -1 {
 			err := fn.dht.Store(entity, infoHash, data)
 			if err != nil {
-				fmt.Printf("ERROR DHT.Store(Me)\n\n")
+				fmt.Printf("ERROR DHT.Store(Me) %s\n\n", err.Error())
 			}
 			break
 		}
