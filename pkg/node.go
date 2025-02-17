@@ -95,7 +95,7 @@ func (n *Node) Store(ctx context.Context, data *pb.StoreData) (*pb.Response, err
 
 	Entity := data.Entity
 	id := data.ID
-	buffer := []byte(data.Value)
+	buffer := data.Value
 	sender := basic.NodeInfo{
 		ID:   data.Sender.ID,
 		IP:   data.Sender.IP,
