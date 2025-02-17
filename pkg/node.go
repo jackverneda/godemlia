@@ -306,8 +306,9 @@ func (fn *Node) LookUp(target []byte) ([]basic.NodeInfo, error) {
 }
 
 func (fn *Node) StoreValue(entity string, info string, data *[]byte) (string, error) {
-	//fmt.Printf("INIT FullNode.StoreValue(%s) method\n\n", key)
-	// defer //fmt.Printf("EXIT FullNode.StoreValue(%s) method\n\n", key)
+	fmt.Printf("INIT STOREV: %s - %s CHUNK: %s \n", entity, info, base58.Encode(*data)[:10])
+	defer fmt.Printf("END STOREV: %s \n", info)
+
 	key := info
 	if entity != fn.dht.MainEntity() {
 		payload := map[string]interface{}{}
