@@ -90,8 +90,6 @@ func (n *Node) Ping(ctx context.Context, sender *pb.NodeInfo) (*pb.NodeInfo, err
 }
 
 func (n *Node) Store(ctx context.Context, data *pb.StoreData) (*pb.Response, error) {
-	fmt.Printf("INIT Node.Store()\n\n")
-	defer fmt.Printf("END Node.Store()\n\n")
 
 	Entity := data.Entity
 	id := data.ID
@@ -103,11 +101,13 @@ func (n *Node) Store(ctx context.Context, data *pb.StoreData) (*pb.Response, err
 	}
 	n.dht.RoutingTable.AddNode(sender)
 
+	fmt.Printf("INIT STORE: %s - %s CHUNK: %s \n", Entity, base58.Encode(id), base58.Encode(buffer)[:10])
+	defer fmt.Printf("END STORE: %s \n", base58.Encode(id))
 	// //fmt.Println("Received Data:", buffer)
 
 	err := n.dht.Store(Entity, id, &buffer)
 	if err != nil {
-		//fmt.Printf("ERROR line:140 DHT.Store()\n\n")
+		fmt.Printf("ERROR STORE: %s \n", err)
 		return nil, err
 	}
 	return nil, nil
