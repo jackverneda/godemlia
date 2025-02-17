@@ -6,6 +6,7 @@ package godemlia;
 
 message Response {
     bool Success = 1;
+    optional bytes Data = 2;
 }
 
 message NodeInfo {

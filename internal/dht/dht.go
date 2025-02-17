@@ -13,18 +13,13 @@ type DHT struct {
 	infrastructure.IInfrastructure
 }
 
-func (fn *DHT) Store(entity string, info []byte, data *[]byte) error {
+func (fn *DHT) Store(entity string, info []byte, data *[]byte) (*[]byte, error) {
 	//fmt.Printf("INIT DHT.Store(%v) len(*data)=%d\n", key, len(*data))
 	// defer //fmt.Printf("END DHT.Store(%v)\n", key)
 
 	//fmt.Println("Before Storage.Create()")
-	_, err := fn.IInfrastructure.Store(entity, info, data)
-	//fmt.Println("After Storage.Create()")
-	if err != nil {
-		//fmt.Println("ERROR line:23 DHT.Storage.Create()")
-		return err
-	}
-	return nil
+	return fn.IInfrastructure.Store(entity, info, data)
+
 }
 
 func (fn *DHT) FindValue(entity string, infoHash *[]byte) (value *[]byte, neighbors *[]basic.NodeInfo) {

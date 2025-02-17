@@ -105,12 +105,13 @@ func (n *Node) Store(ctx context.Context, data *pb.StoreData) (*pb.Response, err
 	defer fmt.Printf("END STORE: %s \n", base58.Encode(id))
 	// //fmt.Println("Received Data:", buffer)
 
-	err := n.dht.Store(Entity, id, &buffer)
+	res, err := n.dht.Store(Entity, id, &buffer)
 	if err != nil {
 		fmt.Printf("ERROR STORE: %s \n", err)
 		return nil, err
 	}
-	return nil, nil
+
+	return &pb.Response{Data: *res, Success: true}, nil
 }
 
 // func (n *Node) Delete(stream pb.Node_StoreServer) error {
@@ -172,7 +173,7 @@ func (n *Node) FindNode(ctx context.Context, target *pb.Target) (*pb.KBucket, er
 	}
 	n.dht.RoutingTable.AddNode(sender)
 
-	bucket := n.dht.FindNode(&target.ID)
+	bucket := n.dht.FindNode(&target.Key)
 
 	return basic.CastKBucket(bucket), nil
 }
@@ -305,7 +306,7 @@ func (fn *Node) LookUp(target []byte) ([]basic.NodeInfo, error) {
 	return kBucket, nil
 }
 
-func (fn *Node) StoreValue(entity string, info string, data *[]byte) (string, error) {
+func (fn *Node) StoreValue(entity string, info string, data *[]byte) (*[]byte, error) {
 	fmt.Printf("INIT STOREV: %s - %s CHUNK: %s \n", entity, info, base58.Encode(*data)[:10])
 	defer fmt.Printf("END STOREV: %s \n", info)
 
@@ -314,7 +315,7 @@ func (fn *Node) StoreValue(entity string, info string, data *[]byte) (string, er
 		payload := map[string]interface{}{}
 		err := json.Unmarshal(*data, &payload)
 		if err != nil {
-			return "", nil
+			return nil, err
 		}
 		key = payload[fn.dht.MainEntity()+"_id"].(string)
 	}
@@ -323,20 +324,21 @@ func (fn *Node) StoreValue(entity string, info string, data *[]byte) (string, er
 	nearestNeighbors, err := fn.LookUp(keyHash)
 	if err != nil {
 		//fmt.Printf("ERROR LookUP() method\n\n")
-		return "", err
+		return nil, err
 	}
 
 	infoHash := base58.Decode(info)
 	if len(nearestNeighbors) < routing.K {
-		err := fn.dht.Store(entity, infoHash, data)
+		_, err := fn.dht.Store(entity, infoHash, data)
 		if err != nil {
 			fmt.Printf("ERROR DHT.Store(Me) %s\n\n", err.Error())
 		}
 	}
 
+	newEntity := &[]byte{}
 	for index, node := range nearestNeighbors {
 		if index == routing.K-1 && basic.ClosestNodeToKey(keyHash, fn.dht.ID, node.ID) == -1 {
-			err := fn.dht.Store(entity, infoHash, data)
+			newEntity, err = fn.dht.Store(entity, infoHash, data)
 			if err != nil {
 				fmt.Printf("ERROR DHT.Store(Me) %s\n\n", err.Error())
 			}
@@ -351,7 +353,7 @@ func (fn *Node) StoreValue(entity string, info string, data *[]byte) (string, er
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		_, err = client.Store(ctx, &pb.StoreData{
+		resp, err := client.Store(ctx, &pb.StoreData{
 			Key:    keyHash,
 			ID:     infoHash,
 			Entity: entity,
@@ -371,19 +373,23 @@ func (fn *Node) StoreValue(entity string, info string, data *[]byte) (string, er
 			}
 			//fmt.Println(err.Error())
 		}
+		if resp.Data != nil {
+			newEntity = &resp.Data
+		}
 		// //fmt.Println("data bytes", dataBytes)
 
 	}
 
 	// //fmt.Println("Stored ID: ", key, "Stored Data:", data)
 	//fmt.Println("===> OKKKK")
-	return key, nil
+	return newEntity, nil
 }
 
-func (fn *Node) GetValue(entity string, target string) ([]byte, error) {
+func (fn *Node) GetValue(entity string, target string, id string) ([]byte, error) {
 	keyHash := base58.Decode(target)
+	idHash := base58.Decode(id)
 
-	val, err := fn.dht.IInfrastructure.Read(entity, keyHash)
+	val, err := fn.dht.IInfrastructure.Read(entity, idHash)
 	// val, err := fn.dht.IInfrastructure.Handle("READ", "user", nil)
 	if err == nil {
 		return *val, nil
@@ -430,7 +436,8 @@ func (fn *Node) GetValue(entity string, target string) ([]byte, error) {
 			receiver, err := client.FindValue(ctx,
 				&pb.Target{
 					Entity: entity,
-					ID:     keyHash,
+					ID:     idHash,
+					Key:    keyHash,
 					Sender: &pb.NodeInfo{
 						ID:   fn.dht.ID,
 						IP:   fn.dht.IP,
@@ -549,6 +556,7 @@ func (fn *Node) Republish() {
 			for _, info := range infos {
 				data, err := fn.dht.IInfrastructure.Read(entity, info)
 				if err != nil {
+					fmt.Println(err)
 					continue
 				}
 
