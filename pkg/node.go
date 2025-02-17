@@ -352,8 +352,9 @@ func (fn *Node) StoreValue(entity string, info string, data *[]byte) (string, er
 		defer cancel()
 
 		_, err = client.Store(ctx, &pb.StoreData{
-			Key: keyHash,
-			ID:  infoHash,
+			Key:    keyHash,
+			ID:     infoHash,
+			Entity: entity,
 			Sender: &pb.NodeInfo{
 				ID:   fn.dht.ID,
 				IP:   fn.dht.IP,
