@@ -22,7 +22,6 @@ message Request {
 message StoreData{
     string Entity = 1;
     bytes Key = 2;
-    bytes ID = 3;
     bytes Value = 4;
     NodeInfo Sender = 5;
 }
@@ -30,8 +29,7 @@ message StoreData{
 message Target {
     string Entity = 1;
     bytes Key = 2;
-    bytes ID  = 3;
-    NodeInfo Sender = 4;
+    NodeInfo Sender = 3;
 }
 
 message KBucket {

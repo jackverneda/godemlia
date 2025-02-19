@@ -19,12 +19,7 @@ func (fn *DHT) Store(entity string, info []byte, data *[]byte) error {
 
 	//fmt.Println("Before Storage.Create()")
 	_, err := fn.IInfrastructure.Store(entity, info, data)
-	//fmt.Println("After Storage.Create()")
-	if err != nil {
-		//fmt.Println("ERROR line:23 DHT.Storage.Create()")
-		return err
-	}
-	return nil
+	return err
 }
 
 func (fn *DHT) FindValue(entity string, infoHash *[]byte) (value *[]byte, neighbors *[]basic.NodeInfo) {
