@@ -113,7 +113,7 @@ func (n *Node) Store(ctx context.Context, data *pb.StoreData) (*pb.Response, err
 	return &pb.Response{Success: true}, nil
 }
 
-// func (n *Node) Delete(stream pb.Node_StoreServer) error {
+// func (n *Node) DeleteValue(stream pb.Node_StoreServer) error {
 // 	//fmt.Printf("INIT FullNode.Store()\n\n")
 // 	// defer //fmt.Printf("END FullNode.Store()\n\n")
 
@@ -543,15 +543,45 @@ func (fn *Node) Republish() {
 
 				key := base58.Encode(info)
 
-				fmt.Printf("REPLICATION ENTITY: %s - ID: %s - CHUNK: %s...", entity, key, string(*data)[:10])
+				fmt.Printf("REPLICATION ENTITY: %s - ID: %s \n", entity, key)
 				// if len(keyStr) == 0 || len(*data) == 0 {
 				// 	break
 				// }
 				go func() {
 					fn.StoreValue(entity, key, data)
 				}()
+
+				go func() {
+					fn.cleanUpData(entity, info)
+				}()
 			}
 		}
-		fmt.Println("Republish worked good for node:", fn.dht.ID)
+		fmt.Println("REPLICATION DONE NODE %s IP %s \n", string(fn.dht.ID), fn.dht.IP)
+	}
+}
+
+func (n *Node) isResponsible(key []byte) bool {
+	nearestNeighbors, err := n.LookUp(key)
+	if err != nil {
+		return true
+	}
+
+	if len(nearestNeighbors) < routing.K {
+		return true
+	} else if basic.ClosestNodeToKey(key, n.dht.ID, nearestNeighbors[routing.K-1].ID) == -1 {
+		return true
+	}
+	return false
+}
+
+func (n *Node) cleanUpData(entity string, key []byte) {
+	if !n.isResponsible(key) {
+		err := n.dht.IInfrastructure.Delete(entity, key)
+		if err != nil {
+			fmt.Printf("DELETION FAIL ENTITY: %s - ID: %s \n", entity, key)
+			return
+		}
+
+		fmt.Printf("DELETION ENTITY: %s - ID: %s \n", entity, key)
 	}
 }
