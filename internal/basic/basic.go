@@ -1,7 +1,7 @@
 package basic
 
 import (
-	"crypto/sha1"
+	"crypto/sha256"
 	"math/big"
 	"strconv"
 	"strings"
@@ -22,7 +22,7 @@ func (b *NodeInfo) Equal(other NodeInfo) bool {
 
 func NewID(ip string, port int) ([]byte, error) {
 	dumb := []byte(ip + ":" + strconv.FormatInt(int64(port), 10))
-	hashValue := sha1.Sum(dumb)
+	hashValue := sha256.Sum256(dumb)
 	return []byte(hashValue[:]), nil
 }
 
