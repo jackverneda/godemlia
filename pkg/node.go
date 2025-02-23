@@ -100,7 +100,7 @@ func (n *Node) Store(ctx context.Context, data *pb.StoreData) (*pb.Response, err
 	}
 	n.dht.RoutingTable.AddNode(sender)
 
-	fmt.Printf("INIT STORE: %s - %s CHUNK: %s \n", Entity, base58.Encode(key), base58.Encode(buffer)[:10])
+	fmt.Printf("INIT STORE: %s - %s CHUNK: %s... \n", Entity, base58.Encode(key), string(buffer)[:10])
 	defer fmt.Printf("END STORE: %s \n", base58.Encode(key))
 	// //fmt.Println("Received Data:", buffer)
 
@@ -541,14 +541,14 @@ func (fn *Node) Republish() {
 					continue
 				}
 
-				infoStr := base58.Encode(info)
+				key := base58.Encode(info)
 
-				fmt.Println("Entity: ", entity, " ID: ", infoStr, " Data: ", data)
+				fmt.Printf("REPLICATION ENTITY: %s - ID: %s - CHUNK: %s...", entity, key, string(*data)[:10])
 				// if len(keyStr) == 0 || len(*data) == 0 {
 				// 	break
 				// }
 				go func() {
-					fn.StoreValue(entity, infoStr, data)
+					fn.StoreValue(entity, key, data)
 				}()
 			}
 		}
