@@ -33,7 +33,7 @@ type RoutingTable struct {
 }
 
 func NewRoutingTable(b basic.NodeInfo) *RoutingTable {
-	fmt.Println(b.ID, b.IP, b.Port)
+	fmt.Println(string(b.ID), b.IP, b.Port)
 	rt := &RoutingTable{}
 	rt.NodeInfo = &b
 	rt.Mutex = &sync.Mutex{}

@@ -354,10 +354,10 @@ func (fn *Node) StoreValue(entity string, key string, data *[]byte) (*[]byte, er
 			//fmt.Printf("ERROR Store(%v, %d) method", node.IP, node.Port)
 			if ctx.Err() == context.DeadlineExceeded {
 				// Handle timeout error
-				//fmt.Println("Timeout exceeded")
+				fmt.Println("Timeout exceeded for ip ", node.IP)
 				continue
 			}
-			//fmt.Println(err.Error())
+			fmt.Println(err.Error())
 		}
 		// //fmt.Println("data bytes", dataBytes)
 
