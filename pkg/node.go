@@ -18,6 +18,7 @@ import (
 	"github.com/jackverneda/godemlia/pb"
 	"github.com/jbenet/go-base58"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/reflection"
 )
 
@@ -269,12 +270,14 @@ func (fn *Node) LookUp(target []byte) ([]basic.NodeInfo, error) {
 					},
 				},
 			)
-			if err != nil && err.Error() == "rpc error: code = DeadlineExceeded desc = context deadline exceeded" {
+			if err != nil && grpc.Code(err) == codes.DeadlineExceeded {
 				//fmt.Println("Crash connection")
+				fmt.Println("ERROR deadline en LookUp para ip ", node.IP, " - ", err)
 				sl.RemoveNode(&node)
 				continue
 			}
 			if err != nil {
+				fmt.Println("ERROR en LookUp para ip ", node.IP, " - ", err)
 				return nil, err
 			}
 			addRecvNodes(recvNodes)
@@ -306,7 +309,7 @@ func (fn *Node) LookUp(target []byte) ([]basic.NodeInfo, error) {
 }
 
 func (fn *Node) StoreValue(entity string, key string, data *[]byte) (*[]byte, error) {
-	fmt.Printf("INIT STOREV: %s - %s CHUNK: %s \n", entity, key, base58.Encode(*data)[:10])
+	fmt.Printf("INIT STOREV: %s - %s \n", entity, key)
 	defer fmt.Printf("END STOREV: %s \n", key)
 
 	keyHash := base58.Decode(key)
