@@ -24,12 +24,16 @@ const (
 
 	// Represents the number of bits in the key space.
 	B = 160
+
+	// Represents the number of fails to consider a peer dead
+	F = 5
 )
 
 type RoutingTable struct {
 	*basic.NodeInfo
 	*sync.Mutex
 	KBuckets [B][]basic.NodeInfo
+	Fail     map[string]int
 }
 
 func NewRoutingTable(b basic.NodeInfo) *RoutingTable {
@@ -105,6 +109,26 @@ RETURN:
 	rt.KBuckets[bIndex] = bucket
 	////fmt.Println(rt.KBuckets)
 	return nil
+}
+
+func (rt *RoutingTable) RemoveNode(nodeID []byte) {
+	rt.Lock()
+	defer rt.Unlock()
+
+	// Encontrar el bucket correspondiente
+	bIndex := getBucketIndex(rt.ID, nodeID)
+	bucket := rt.KBuckets[bIndex]
+
+	// Buscar y eliminar el nodo
+	for i := 0; i < len(bucket); i++ {
+		if bytes.Equal(bucket[i].ID, nodeID) {
+			rt.KBuckets[bIndex] = append(bucket[:i], bucket[i+1:]...)
+
+			// Mover nodo de reemplazo si existe
+			// rt.PromoteReplacementNode(bIndex)
+			return
+		}
+	}
 }
 
 func getBucketIndex(id1 []byte, id2 []byte) int {

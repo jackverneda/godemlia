@@ -18,7 +18,6 @@ import (
 	"github.com/jackverneda/godemlia/pb"
 	"github.com/jbenet/go-base58"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/reflection"
 )
 
@@ -270,15 +269,14 @@ func (fn *Node) LookUp(target []byte) ([]basic.NodeInfo, error) {
 					},
 				},
 			)
-			if err != nil && grpc.Code(err) == codes.DeadlineExceeded {
-				//fmt.Println("Crash connection")
+			if err != nil {
+				// if st, ok := status.FromError(err); ok && st.Code() == codes.DeadlineExceeded {
 				fmt.Println("ERROR deadline en LookUp para ip ", node.IP, " - ", err)
 				sl.RemoveNode(&node)
 				continue
-			}
-			if err != nil {
-				fmt.Println("ERROR en LookUp para ip ", node.IP, " - ", err)
-				return nil, err
+				// }
+				// fmt.Println("ERROR en LookUp para ip ", node.IP, " - ", err)
+				// return nil, err
 			}
 			addRecvNodes(recvNodes)
 		}
@@ -496,8 +494,7 @@ func (fn *Node) joinNetwork(port int) {
 		}
 
 		for _, node := range *kBucket {
-			fmt.Printf("Node: %s", node.IP)
-			fmt.Printf(":%s\n", node.Port)
+			fmt.Printf("PING TO NODE: %s:%v\n", node.IP, node.Port)
 			client, err := NewNodeClient(node.IP, node.Port)
 			if err != nil {
 				continue
