@@ -483,30 +483,35 @@ func (fn *Node) GetValue(entity string, key string) ([]byte, error) {
 }
 
 func (fn *Node) GetAll(entity string, criteria string, maxResults int32) ([][]byte, error) {
+	value, total, neighbors := fn.dht.FindAll(entity, criteria)
+
 	var (
 		wg           sync.WaitGroup
 		mutex        sync.Mutex
 		visitedNodes = make(map[string]struct{})
 		results      [][]byte
-		count        int32
+		count        = total
 		resultChan   = make(chan struct {
 			value []byte
 			total int32
 		}, 100)
 		ctx, cancel = context.WithCancel(context.Background())
 		sem         = make(chan struct{}, 20) // Limitar concurrencia
-		remaining   = int32(maxResults)
+		remaining   = int32(maxResults) - total
 	)
 	defer cancel()
 
-	queue := []*basic.NodeInfo{fn.dht.NodeInfo}
+	queue := *neighbors
 	visitedNodes[string(fn.dht.NodeInfo.ID)] = struct{}{}
+	if total > 0 {
+		results = append(results, *value)
+	}
 
 	go func() {
 		for res := range resultChan {
 			mutex.Lock()
 			if count < maxResults && res.total > 0 {
-				fmt.Printf("APPLN SEARCH %s LIKE %s for FOUND %v", res.total)
+				fmt.Printf("APPLN SEARCH %s LIKE %s for FOUND %v", entity, criteria, res.total)
 				results = append(results, res.value)
 				count += res.total
 				remaining -= res.total
@@ -519,7 +524,7 @@ func (fn *Node) GetAll(entity string, criteria string, maxResults int32) ([][]by
 	}()
 
 	for len(queue) > 0 && atomic.LoadInt32(&remaining) > 0 {
-		fmt.Printf("APPLN SEARCH %s LIKE %s for NODE %s:%v")
+		fmt.Printf("APPLN SEARCH %s LIKE %s for NODE %s:%v", entity, criteria, fn.dht.IP, fn.dht.Port)
 		select {
 		case <-ctx.Done():
 			break
@@ -552,7 +557,7 @@ func (fn *Node) GetAll(entity string, criteria string, maxResults int32) ([][]by
 				})
 
 				if err != nil {
-					fmt.Printf("APPLN SEARCH %s LIKE %s for NODE %s:%v FAIL request")
+					fmt.Printf("APPLN SEARCH %s LIKE %s for NODE %s:%v FAIL request", entity, criteria, fn.dht.IP, fn.dht.Port)
 					return
 				}
 
