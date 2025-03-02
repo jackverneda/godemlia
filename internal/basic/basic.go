@@ -40,6 +40,20 @@ func CastKBucket(nodes *[]NodeInfo) *pb.KBucket {
 	return &result
 }
 
+func CastPArrayNode(nodes *[]NodeInfo) []*NodeInfo {
+	_nodes := []*NodeInfo{}
+	for _, node := range *nodes {
+		_nodes = append(_nodes,
+			&NodeInfo{
+				ID:   node.ID,
+				IP:   node.IP,
+				Port: node.Port,
+			},
+		)
+	}
+	return _nodes
+}
+
 func ClosestNodeToKey(key []byte, id1 []byte, id2 []byte) int {
 	buf1 := new(big.Int).SetBytes(key)
 	buf2 := new(big.Int).SetBytes(id1)

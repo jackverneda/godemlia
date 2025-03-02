@@ -501,7 +501,7 @@ func (fn *Node) GetAll(entity string, criteria string, maxResults int32) ([][]by
 	)
 	defer cancel()
 
-	queue := *neighbors
+	queue := basic.CastPArrayNode(neighbors)
 	visitedNodes[string(fn.dht.NodeInfo.ID)] = struct{}{}
 	if total > 0 {
 		results = append(results, *value)
