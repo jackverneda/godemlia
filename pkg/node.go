@@ -502,13 +502,14 @@ func (fn *Node) GetAll(entity string, criteria string, maxResults int32) ([][]by
 	queue := []*basic.NodeInfo{fn.dht.NodeInfo}
 	visitedNodes[string(fn.dht.NodeInfo.ID)] = struct{}{}
 
-	// Worker para procesar resultados
 	go func() {
 		for res := range resultChan {
 			mutex.Lock()
 			if count < maxResults && res.total > 0 {
+				fmt.Printf("APPLN SEARCH %s LIKE %s for FOUND %v", res.total)
 				results = append(results, res.value)
 				count += res.total
+				remaining -= res.total
 			}
 			if count >= maxResults {
 				cancel()
@@ -518,6 +519,7 @@ func (fn *Node) GetAll(entity string, criteria string, maxResults int32) ([][]by
 	}()
 
 	for len(queue) > 0 && atomic.LoadInt32(&remaining) > 0 {
+		fmt.Printf("APPLN SEARCH %s LIKE %s for NODE %s:%v")
 		select {
 		case <-ctx.Done():
 			break
@@ -549,26 +551,33 @@ func (fn *Node) GetAll(entity string, criteria string, maxResults int32) ([][]by
 					},
 				})
 
-				if err == nil && response != nil {
+				if err != nil {
+					fmt.Printf("APPLN SEARCH %s LIKE %s for NODE %s:%v FAIL request")
+					return
+				}
+
+				if response.Value != nil {
 					resultChan <- struct {
 						value []byte
 						total int32
 					}{response.Value, *response.Total}
-					// Procesar vecinos
-					mutex.Lock()
-					for _, neighbor := range response.KNeartestBuckets.Bucket {
-						neighborID := string(neighbor.ID)
-						if _, exists := visitedNodes[neighborID]; !exists {
-							visitedNodes[neighborID] = struct{}{}
-							queue = append(queue, &basic.NodeInfo{
-								ID:   neighbor.ID,
-								IP:   neighbor.IP,
-								Port: int(neighbor.Port),
-							})
-						}
-					}
-					mutex.Unlock()
 				}
+
+				// Procesar vecinos
+				mutex.Lock()
+				for _, neighbor := range response.KNeartestBuckets.Bucket {
+					neighborID := string(neighbor.ID)
+					if _, exists := visitedNodes[neighborID]; !exists {
+						visitedNodes[neighborID] = struct{}{}
+						queue = append(queue, &basic.NodeInfo{
+							ID:   neighbor.ID,
+							IP:   neighbor.IP,
+							Port: int(neighbor.Port),
+						})
+					}
+				}
+				mutex.Unlock()
+
 			}(node)
 		}
 	}
