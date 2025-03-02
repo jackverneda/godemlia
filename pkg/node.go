@@ -7,6 +7,8 @@ import (
 	"log"
 	"net"
 	"sort"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/jackverneda/godemlia/internal/basic"
@@ -19,6 +21,7 @@ import (
 	"github.com/jbenet/go-base58"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
+	"google.golang.org/protobuf/proto"
 )
 
 type Node struct {
@@ -200,6 +203,38 @@ func (fn *Node) FindValue(ctx context.Context, target *pb.Target) (*pb.FindValue
 		response = pb.FindValueResponse{
 			KNeartestBuckets: &pb.KBucket{Bucket: []*pb.NodeInfo{}},
 			Value:            *value,
+		}
+	} else {
+		return nil, errors.New("check code because this case shouldn't be valid")
+	}
+	return &response, nil
+}
+
+func (fn *Node) FindAll(ctx context.Context, query *pb.Query) (*pb.FindValueResponse, error) {
+	// add the sender to the Routing Table
+	sender := basic.NodeInfo{
+		ID:   query.Sender.ID,
+		IP:   query.Sender.IP,
+		Port: int(query.Sender.Port),
+	}
+	fn.dht.RoutingTable.AddNode(sender)
+
+	value, total, neighbors := fn.dht.FindAll(query.Entity, query.Criteria)
+	response := pb.FindValueResponse{}
+
+	if value == nil && neighbors != nil {
+		response = pb.FindValueResponse{
+			KNeartestBuckets: basic.CastKBucket(neighbors),
+			Value:            []byte{},
+			Total:            proto.Int32(0),
+		}
+
+	} else if value != nil && neighbors == nil {
+		//fmt.Println("Value from FindValue:", value)
+		response = pb.FindValueResponse{
+			KNeartestBuckets: &pb.KBucket{Bucket: []*pb.NodeInfo{}},
+			Value:            *value,
+			Total:            &total,
 		}
 	} else {
 		return nil, errors.New("check code because this case shouldn't be valid")
@@ -445,6 +480,103 @@ func (fn *Node) GetValue(entity string, key string) ([]byte, error) {
 	}
 
 	return buffer, nil
+}
+
+func (fn *Node) GetAll(entity string, criteria string, maxResults int32) ([][]byte, error) {
+	var (
+		wg           sync.WaitGroup
+		mutex        sync.Mutex
+		visitedNodes = make(map[string]struct{})
+		results      [][]byte
+		count        int32
+		resultChan   = make(chan struct {
+			value []byte
+			total int32
+		}, 100)
+		ctx, cancel = context.WithCancel(context.Background())
+		sem         = make(chan struct{}, 20) // Limitar concurrencia
+		remaining   = int32(maxResults)
+	)
+	defer cancel()
+
+	queue := []*basic.NodeInfo{fn.dht.NodeInfo}
+	visitedNodes[string(fn.dht.NodeInfo.ID)] = struct{}{}
+
+	// Worker para procesar resultados
+	go func() {
+		for res := range resultChan {
+			mutex.Lock()
+			if count < maxResults && res.total > 0 {
+				results = append(results, res.value)
+				count += res.total
+			}
+			if count >= maxResults {
+				cancel()
+			}
+			mutex.Unlock()
+		}
+	}()
+
+	for len(queue) > 0 && atomic.LoadInt32(&remaining) > 0 {
+		select {
+		case <-ctx.Done():
+			break
+		default:
+			node := queue[0]
+			queue = queue[1:]
+
+			sem <- struct{}{}
+			wg.Add(1)
+
+			go func(n *basic.NodeInfo) {
+				defer func() {
+					<-sem
+					wg.Done()
+				}()
+
+				client, err := NewNodeClient(n.IP, n.Port)
+				if err != nil {
+					return
+				}
+
+				response, err := client.FindAll(ctx, &pb.Query{
+					Entity:   entity,
+					Criteria: criteria,
+					Sender: &pb.NodeInfo{
+						ID:   fn.dht.ID,
+						IP:   fn.dht.IP,
+						Port: int32(fn.dht.Port),
+					},
+				})
+
+				if err == nil && response != nil {
+					resultChan <- struct {
+						value []byte
+						total int32
+					}{response.Value, *response.Total}
+					// Procesar vecinos
+					mutex.Lock()
+					for _, neighbor := range response.KNeartestBuckets.Bucket {
+						neighborID := string(neighbor.ID)
+						if _, exists := visitedNodes[neighborID]; !exists {
+							visitedNodes[neighborID] = struct{}{}
+							queue = append(queue, &basic.NodeInfo{
+								ID:   neighbor.ID,
+								IP:   neighbor.IP,
+								Port: int(neighbor.Port),
+							})
+						}
+					}
+					mutex.Unlock()
+				}
+			}(node)
+		}
+	}
+
+	wg.Wait()
+	close(resultChan)
+
+	return results, nil
 }
 
 // ======================== JOIN NETWORK ===========================

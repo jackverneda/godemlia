@@ -24,6 +24,7 @@ const (
 	Node_Delete_FullMethodName    = "/godemlia.Node/Delete"
 	Node_FindNode_FullMethodName  = "/godemlia.Node/FindNode"
 	Node_FindValue_FullMethodName = "/godemlia.Node/FindValue"
+	Node_FindAll_FullMethodName   = "/godemlia.Node/FindAll"
 )
 
 // NodeClient is the client API for Node service.
@@ -35,6 +36,7 @@ type NodeClient interface {
 	Delete(ctx context.Context, in *StoreData, opts ...grpc.CallOption) (*Response, error)
 	FindNode(ctx context.Context, in *Target, opts ...grpc.CallOption) (*KBucket, error)
 	FindValue(ctx context.Context, in *Target, opts ...grpc.CallOption) (*FindValueResponse, error)
+	FindAll(ctx context.Context, in *Query, opts ...grpc.CallOption) (*FindValueResponse, error)
 }
 
 type nodeClient struct {
@@ -95,6 +97,16 @@ func (c *nodeClient) FindValue(ctx context.Context, in *Target, opts ...grpc.Cal
 	return out, nil
 }
 
+func (c *nodeClient) FindAll(ctx context.Context, in *Query, opts ...grpc.CallOption) (*FindValueResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(FindValueResponse)
+	err := c.cc.Invoke(ctx, Node_FindAll_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // NodeServer is the server API for Node service.
 // All implementations must embed UnimplementedNodeServer
 // for forward compatibility.
@@ -104,6 +116,7 @@ type NodeServer interface {
 	Delete(context.Context, *StoreData) (*Response, error)
 	FindNode(context.Context, *Target) (*KBucket, error)
 	FindValue(context.Context, *Target) (*FindValueResponse, error)
+	FindAll(context.Context, *Query) (*FindValueResponse, error)
 	mustEmbedUnimplementedNodeServer()
 }
 
@@ -128,6 +141,9 @@ func (UnimplementedNodeServer) FindNode(context.Context, *Target) (*KBucket, err
 }
 func (UnimplementedNodeServer) FindValue(context.Context, *Target) (*FindValueResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method FindValue not implemented")
+}
+func (UnimplementedNodeServer) FindAll(context.Context, *Query) (*FindValueResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method FindAll not implemented")
 }
 func (UnimplementedNodeServer) mustEmbedUnimplementedNodeServer() {}
 func (UnimplementedNodeServer) testEmbeddedByValue()              {}
@@ -240,6 +256,24 @@ func _Node_FindValue_Handler(srv interface{}, ctx context.Context, dec func(inte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Node_FindAll_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Query)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NodeServer).FindAll(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Node_FindAll_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NodeServer).FindAll(ctx, req.(*Query))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Node_ServiceDesc is the grpc.ServiceDesc for Node service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -266,6 +300,10 @@ var Node_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "FindValue",
 			Handler:    _Node_FindValue_Handler,
+		},
+		{
+			MethodName: "FindAll",
+			Handler:    _Node_FindAll_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

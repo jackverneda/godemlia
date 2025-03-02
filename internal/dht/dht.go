@@ -33,6 +33,17 @@ func (fn *DHT) FindValue(entity string, infoHash *[]byte) (value *[]byte, neighb
 	return value, nil
 }
 
+func (fn *DHT) FindAll(entity, creiteria string) (value *[]byte, total int32, neighbors *[]basic.NodeInfo) {
+	// value, err := fn.Handle("READ", "user", nil)
+	value, total, err := fn.IInfrastructure.Search(entity, creiteria)
+	if err != nil {
+		////fmt.Println("Find Value error: ", err)
+		neighbors = fn.RoutingTable.GetClosestContacts(routing.ALPHA, fn.ID, []*basic.NodeInfo{fn.NodeInfo}).Nodes
+		return nil, 0, neighbors
+	}
+	return value, total, nil
+}
+
 func (fn *DHT) DeleteValue(infoHash *[]byte, start int64, end int64) error {
 	_, err := fn.Handle("DELETE", "user", nil)
 	if err != nil {

@@ -32,6 +32,12 @@ message Target {
     NodeInfo Sender = 3;
 }
 
+message Query {
+    string Entity = 1;
+    string Criteria = 2;
+    NodeInfo Sender = 3;
+}
+
 message KBucket {
     repeated NodeInfo Bucket = 1;
 }
@@ -39,6 +45,7 @@ message KBucket {
 message FindValueResponse {
     optional KBucket KNeartestBuckets = 1;
     optional bytes Value = 2;
+    optional int32 Total = 3;
 }
 
 service Node {
@@ -47,4 +54,5 @@ service Node {
     rpc Delete(StoreData) returns (Response) {}
     rpc FindNode(Target)  returns (KBucket) {}
     rpc FindValue(Target) returns (FindValueResponse) {}
+    rpc FindAll(Query) returns (FindValueResponse) {}
 }
